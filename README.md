@@ -1,1 +1,2 @@
 # SSNbayes
+Experimental ONLY!
