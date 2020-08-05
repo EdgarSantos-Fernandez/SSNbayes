@@ -7,10 +7,7 @@ Maintainer: Edgar Santos-Fernandez <santosfe@qut.edu.au>
 Imports:
     plyr,
     dplyr,
-    ggplot2,
     rstan,
-    rgeos,
-    sp,
     SSN
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
