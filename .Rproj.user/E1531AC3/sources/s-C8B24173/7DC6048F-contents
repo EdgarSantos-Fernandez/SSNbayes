@@ -1,0 +1,22 @@
+Package: SSNbayes
+Type: Package
+Title: SSNbayes: An R package for Bayesian spatial and spatio-temporal analysis in stream network
+Version: 0.0.1
+Author: Edgar Santos-Fernandez
+Maintainer: Edgar Santos-Fernandez <santosfe@qut.edu.au>
+Depends:
+    R (>= 3.2)
+Imports:
+    plyr,
+    dplyr,
+    ggplot2,
+    rstan,
+    rgeos,
+    sp,
+    SSN
+Description: More about what it does (maybe more than one line)
+    Use four spaces when indenting paragraphs within the Description.
+License: GPL-2
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.0
