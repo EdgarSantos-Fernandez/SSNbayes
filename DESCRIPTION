@@ -4,8 +4,6 @@ Title: SSNbayes: An R package for Bayesian spatial and spatio-temporal analysis 
 Version: 0.0.1
 Author: Edgar Santos-Fernandez
 Maintainer: Edgar Santos-Fernandez <santosfe@qut.edu.au>
-Depends:
-    R (>= 3.2)
 Imports:
     plyr,
     dplyr,
