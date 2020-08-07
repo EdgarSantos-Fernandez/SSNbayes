@@ -2,11 +2,14 @@
 % Please edit documentation in R/all_func.R
 \name{ssnbayes}
 \alias{ssnbayes}
-\title{Fits the model using Stan}
+\title{Fits a mixed regression model using Stan
+It requires the same number of observation/locations per day.
+Missing values are alloed in the response but not in the covariates.}
 \usage{
 ssnbayes(
   formula = formula,
   data = data,
+  ssn = ssn,
   CorModels = "Exponential.tailup",
   iter = 3000,
   warmup = 1500,
@@ -17,7 +20,9 @@ ssnbayes(
 \arguments{
 \item{formula}{A formula as in lm()}
 
-\item{data}{A list}
+\item{data}{A data.frame containing the locations, dates, covariates and the response variable}
+
+\item{ssn}{A .SSN object}
 
 \item{CorModels}{Correlation structure}
 
@@ -33,13 +38,15 @@ ssnbayes(
 A list with the fit
 }
 \description{
-Fits the model using Stan
+Fits a mixed regression model using Stan
+It requires the same number of observation/locations per day.
+Missing values are alloed in the response but not in the covariates.
 }
 \examples{
 #fit_td <- ssnbayes(formula = 'y ~ X1 + X2 + X3',
-#                     data = data,
+#                    data = data, ssn = ssn,
 #                    CorModels = "Exponential.taildown",
-#                     iter = 3000,
-#                     warmup = 1500,
+#                    iter = 3000,
+#                    warmup = 1500,
 #                    chains = 3)
 }

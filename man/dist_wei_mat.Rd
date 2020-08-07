@@ -15,3 +15,7 @@ A list of matrices
 \description{
 Creates a list of distances and weights
 }
+\examples{
+#mat_all <- dist_wei_mat(path)
+
+}

@@ -1,5 +1,3 @@
-# Some useful keyboard shortcuts for package authoring:
-#
 #   Install Package:           'Ctrl + Shift + B'
 #   Check Package:             'Ctrl + Shift + E'
 #   Test Package:              'Ctrl + Shift + T'
@@ -15,6 +13,8 @@
 #' @importFrom stats dist
 #' @export
 #' @examples
+#' #mat_all <- dist_wei_mat(path)
+#'
 dist_wei_mat <- function(path = path){
 
   n  <- importSSN(path, o.write = TRUE)
@@ -65,13 +65,44 @@ dist_wei_mat <- function(path = path){
   list(e = e, D = D, H = H, w.matrix = w.matrix, flow.con.mat = flow.con.mat)
 }
 
-#mat_all <- dist_wei_mat(path)
-
-
-#' Fits the model using Stan
+#' A simple modeling function using a formula and data
 #'
 #' @param formula A formula as in lm()
-#' @param data A list
+#' @param data A data.frame containing the elements specified in the formula
+#' @return A list of matrices
+#' @importFrom stats model.matrix model.response
+#' @export
+#' @author Jay ver Hoef
+#' @examples
+#' #options(na.action='na.pass')
+#' #out_list = mylm(formula = y ~ X1 + X2 + X3, data = data)
+#'
+
+mylm <- function(formula, data) {
+  # get response as a vector
+  mf <- match.call(expand.dots = FALSE)
+  m <- match(c("formula", "data"), names(mf), 0L)
+  mf <- mf[c(1L, m)]
+  mf$drop.unused.levels <- TRUE
+  mf[[1L]] <- as.name("model.frame")
+  mf <- eval(mf, parent.frame())
+  y <- as.vector(model.response(mf, "numeric"))
+  # create design matrix
+  X <- model.matrix(formula, data)
+  # return a list of response vector and design matrix
+  return(list(y = y, X = X))
+}
+
+
+
+
+#' Fits a mixed regression model using Stan
+#' It requires the same number of observation/locations per day.
+#' Missing values are alloed in the response but not in the covariates.
+#'
+#' @param formula A formula as in lm()
+#' @param data A data.frame containing the locations, dates, covariates and the response variable
+#' @param ssn A .SSN object
 #' @param CorModels Correlation structure
 #' @param iter Number of iterations
 #' @param warmup Warm up samples
@@ -86,20 +117,23 @@ dist_wei_mat <- function(path = path){
 #' @importFrom stats dist
 #' @examples
 #' #fit_td <- ssnbayes(formula = 'y ~ X1 + X2 + X3',
-#' #                     data = data,
+#' #                    data = data, ssn = ssn,
 #' #                    CorModels = "Exponential.taildown",
-#' #                     iter = 3000,
-#' #                     warmup = 1500,
+#' #                    iter = 3000,
+#' #                    warmup = 1500,
 #' #                    chains = 3)
 
 ssnbayes <- function(formula = formula,
                      data = data,
+                     ssn = ssn,
                      CorModels = "Exponential.tailup",
                      iter = 3000,
                      warmup = 1500,
                      chains = 3,
                      refresh = max(iter/100, 1)){
 
+
+  # Cov
   cor_tu <- case_when(CorModels == "Exponential.tailup" ~ 1,
                       CorModels == "LinearSill.tailup" ~ 2,
                       CorModels == "Spherical.tailup" ~ 3,
@@ -450,31 +484,92 @@ ssnbayes <- function(formula = formula,
   pars <- pars[pars != '']
 
 
-  data$e = data$mat_all$e #Euclidean dist
+  # data part
+  options(na.action='na.pass') # to preserve the NAs
+  out_list <- mylm(formula = formula, data = data) # produces the design matrix
+
+  response <- out_list$y # response variable
+  design_matrix <- out_list$X # design matrix
+
+  obs_data <- data
+  N <- nrow(obs_data)
+
+  ndays <- length(unique(obs_data$date))
+  nobs <- nrow(obs_data)/ndays
+
+  train <- nrow(obs_data[obs_data$date==1 & !is.na(obs_data$y),])
+  test <- nrow(obs_data[obs_data$date==1 & is.na(obs_data$y),])
+  #train <- points - round(points * 0.30)
+  #test <- round(points * 0.30)
+
+
+  # array structure
+  X <- design_matrix #cbind(1,obs_data[, c("X1", "X2", "X3")]) # design matrix
+  #Xarray <- abind(matrix(X[,1],nrow = ndays, ncol = nobs, byrow = T),
+  #                matrix(X[,2],nrow = ndays, ncol = nobs, byrow = T),
+  #                matrix(X[,3],nrow = ndays, ncol = nobs, byrow = T),
+  #                matrix(X[,4],nrow = ndays, ncol = nobs, byrow = T), along = 3)
+
+  # NB: this array order is Stan specific
+  Xarray <- aperm(array( c(X), dim=c(nobs, ndays, ncol(X)) ),c(2, 1, 3))
+
+
+  ys <- response[!is.na(response)]#obs_data[!is.na(obs_data$y),]$y
+  Yarray <- array(matrix(ys, nrow = ndays, ncol = train, byrow = T),
+                  dim = c(ndays, train))
+
+  # index for observed values
+  i_y_obs <- obs_data[!is.na(obs_data$y),]$pid
+  i_y_obs_array <- matrix(i_y_obs, nrow = train , ncol = ndays, byrow = F)
+
+
+  # index for missing values
+  i_y_mis <- obs_data[is.na(obs_data$y),]$pid
+  i_y_mis_array <- matrix(i_y_mis, nrow = test, ncol = ndays, byrow = F)
+
+  mat_all <- dist_wei_mat(ssn)
+
+  data_list <- list(N = nobs, # obs + preds  points
+                    T = ndays, # time points
+                    K = ncol(X),  # ncol of design matrix
+                    y_obs = ys,# y values in the obs df
+
+                    N_y_obs = nrow(i_y_obs_array),  # numb obs points
+                    N_y_mis = nrow(i_y_mis_array), # numb preds points
+
+                    i_y_obs = i_y_obs_array, # index of obs points
+                    i_y_mis = i_y_mis_array, # index of preds points
+
+                    X = Xarray, # design matrix
+                    mat_all = mat_all) # a list with all the distance/weights matrices
+
+
+  data_list$e = data_list$mat_all$e #Euclidean dist
   #for tail-up
-  data$h = data$mat_all$H # total stream distance
-  data$W = data$mat_all$w.matrix # spatial weights
+  data_list$h = data_list$mat_all$H # total stream distance
+  data_list$W = data_list$mat_all$w.matrix # spatial weights
 
   #for tail-down
-  data$flow_con_mat = data$mat_all$flow.con.mat #flow connected matrix
-  data$D = data$mat_all$D #downstream hydro distance matrix
+  data_list$flow_con_mat = data_list$mat_all$flow.con.mat #flow connected matrix
+  data_list$D = data_list$mat_all$D #downstream hydro distance matrix
 
   #RE1 = RE1mm # random effect matrix
 
-  data$I = diag(1, nrow(data$W), nrow(data$W))  # diagonal matrix
+  data_list$I = diag(1, nrow(data_list$W), nrow(data_list$W))  # diagonal matrix
 
-  fit <- stan(model_code = ssn_ar1,
-              model_name = "ssn_ar1",
-              data = data,
-              pars = pars,
-              iter = iter,
-              warmup = warmup,
-              chains = chains,
-              verbose = F,
-              #seed = 22,
-              refresh = refresh
+  fit <- rstan::stan(model_code = ssn_ar1,
+                     model_name = "ssn_ar1",
+                     data = data_list,
+                     pars = pars,
+                     iter = iter,
+                     warmup = warmup,
+                     chains = chains,
+                     verbose = F,
+                     #seed = seed,
+                     refresh = refresh
   )
 
   fit
 }
+
 
