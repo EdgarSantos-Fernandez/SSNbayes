@@ -4,17 +4,25 @@
 \alias{ssnbayes}
 \title{Fits a mixed regression model using Stan
 It requires the same number of observation/locations per day.
-Missing values are alloed in the response but not in the covariates.}
+It requires location id (locID) and points id (pid).
+The locID are unique for each site.
+The pid is unique for each observation.
+Missing values are allowed in the response but not in the covariates.}
 \usage{
 ssnbayes(
   formula = formula,
   data = data,
-  ssn = ssn,
+  path = path,
+  TempModel = "ar",
   CorModels = "Exponential.tailup",
   iter = 3000,
   warmup = 1500,
   chains = 3,
-  refresh = max(iter/100, 1)
+  refresh = max(iter/100, 1),
+  net = 1,
+  addfunccol = addfunccol,
+  loglik = F,
+  ssn_object = T
 )
 }
 \arguments{
@@ -22,9 +30,11 @@ ssnbayes(
 
 \item{data}{A data.frame containing the locations, dates, covariates and the response variable}
 
-\item{ssn}{A .SSN object}
+\item{path}{Path with the name of the SSN object}
 
-\item{CorModels}{Correlation structure}
+\item{TempModel}{Temporal structure (ar = Autorregressive; var = Vector autorregression)}
+
+\item{CorModels}{Spatial correlation structure}
 
 \item{iter}{Number of iterations}
 
@@ -40,7 +50,10 @@ A list with the fit
 \description{
 Fits a mixed regression model using Stan
 It requires the same number of observation/locations per day.
-Missing values are alloed in the response but not in the covariates.
+It requires location id (locID) and points id (pid).
+The locID are unique for each site.
+The pid is unique for each observation.
+Missing values are allowed in the response but not in the covariates.
 }
 \examples{
 #fit_td <- ssnbayes(formula = 'y ~ X1 + X2 + X3',

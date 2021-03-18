@@ -2,9 +2,40 @@
 #   Check Package:             'Ctrl + Shift + E'
 #   Test Package:              'Ctrl + Shift + T'
 
+#' Collapses a SSN object into a data frame
+#'
+#' @param t Path to a SSN object
+#' @return A data frame
+#' @importFrom dplyr arrange
+#' @importFrom plyr .
+#' @export
+#' @examples
+#' #t.df <- collapse(t)
+#'
+
+collapse <- function(t){
+  df_all <- NULL
+  for (i in 1:length(t@lines)){
+    df <- data.frame(t@lines[[i]]@Lines[[1]]@coords)
+    df$slot <- t@lines[[i]]@ID
+    df$computed_afv <-  t@data$afvArea[i] #afvArea
+    df_all<- rbind(df, df_all)
+
+    df_all$slot <- as.numeric(as.character(df_all$slot))
+  }
+  df_all <-  dplyr::arrange(df_all, slot)
+  df_all
+}
+
+
+
+
+
 #' Creates a list of distances and weights
 #'
 #' @param path Path to the files
+#' @param net (optional) A network from the SSN object
+#' @param addfunccol (optional) A parameter to compute the spatial weights
 #' @return A list of matrices
 #' @importFrom dplyr mutate %>% distinct left_join case_when
 #' @importFrom plyr .
@@ -15,19 +46,124 @@
 #' @examples
 #' #mat_all <- dist_wei_mat(path)
 #'
-dist_wei_mat <- function(path = path){
 
-  n  <- importSSN(path, o.write = TRUE)
+
+dist_wei_mat <- function(path = path,
+ net = 1,
+ addfunccol='addfunccol'){
+
+    n  <- importSSN(path, o.write = TRUE)
+    obs_data <- getSSNdata.frame(n, "Obs")
+
+    # creating distance matrices
+    D <- readRDS(paste0(path, '/distance/obs/dist.net', net, '.RData')) # distance between observations
+
+    # total distance
+    H <- D + base::t(D)
+
+    obs_data <- dplyr::filter(obs_data, pid %in% colnames(H))
+    # NB replace here by the variable used for spatial weights
+    afv <- obs_data[c('locID', addfunccol)] %>% distinct()
+
+    # codes from SSN::glmssn
+    nsofar <- 0
+    dist.junc <- matrix(0, nrow = length(afv[, 1]), ncol = length(afv[,1]))
+    distmat <- D
+    ni <- length(distmat[1,])
+    ordpi <- order(as.numeric(rownames(distmat)))
+    dist.junc[(nsofar + 1):(nsofar + ni), (nsofar + 1):(nsofar + ni)] <-
+      distmat[ordpi, ordpi, drop = F]
+    b.mat <- pmin(dist.junc, base::t(dist.junc))
+    dist.hydro <- as.matrix(dist.junc + base::t(dist.junc))
+    flow.con.mat <- 1 - (b.mat > 0) * 1
+
+    n.all <- ni
+    # weights matrix
+    w.matrix <- sqrt(pmin(outer(afv[, addfunccol],rep(1, times = n.all)),
+                          base::t(outer(afv[, addfunccol],rep(1, times = n.all) ))) /
+                       pmax(outer(afv[, addfunccol],rep(1, times = n.all)),
+                            base::t(outer(afv[, addfunccol], rep(1, times = n.all))))) *
+      flow.con.mat
+
+    # Euclidean distance
+
+    obs_data_coord <- data.frame(n@obspoints@SSNPoints[[1]]@point.coords)
+    obs_data_coord$locID <- factor(1:nrow(obs_data_coord))
+
+    obs_data <- obs_data %>% left_join(obs_data_coord, by = c('locID'))
+    obs_data$point <- 'Obs'
+
+
+    e <- obs_data %>%
+      dplyr::select('coords.x1', 'coords.x2') %>%
+      dist(., method = "euclidean", diag = FALSE, upper = FALSE) %>% as.matrix()
+
+      list(e = e, D = D, H = H, w.matrix = w.matrix, flow.con.mat = flow.con.mat)
+}
+
+
+
+
+#' Creates a list of distances and weights between observed and prediction sites
+#'
+#' @param path Path with the name of the SSN object
+#' @param net (optional) A network from the SSN object
+#' @param addfunccol (optional) A parameter to compute the spatial weights
+#' @return A list of matrices
+#' @importFrom dplyr mutate %>% distinct left_join case_when
+#' @importFrom plyr .
+#' @importFrom SSN importSSN getSSNdata.frame
+#' @importFrom rstan stan
+#' @importFrom stats dist
+#' @export
+#' @description The output matrices are symmetric except the hydrologic distance matrix D.
+#' @examples
+#' #mat_all <- dist_wei_mat_preds(path, net = 1, addfunccol = 'addfunccol')
+#'
+#'
+
+dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
+
+  n  <- importSSN(path, predpts = 'preds', o.write = TRUE)
+
   obs_data <- getSSNdata.frame(n, "Obs")
+  pred_data <- getSSNdata.frame(n, "preds")
+
+  obs_data <- dplyr::filter(obs_data, netID == net ) %>% arrange(locID)
+  pred_data <- dplyr::filter(pred_data, netID == net ) %>% arrange(locID)
+
+  obs_data$locID_backup <- obs_data$locID
+  pred_data$locID_backup <- pred_data$locID
+
+  if(file.exists(paste0(path, '/distance/preds')) == F) stop("no distance matrix available between predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = T)")
 
   # creating distance matrices
-  D <- readRDS(paste0(path, '/distance/obs/dist.net1.RData')) # distance between observations
+  doo <- readRDS(paste0(path, '/distance/obs/dist.net', net, '.RData'))
 
-  # total distance
+  if(file.exists(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) == F) stop("no distance matrix available between observations and predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = T)")
+  dop <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) # distance between observations
+  dpo <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.b.RData'))
+  dpp <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.RData'))
+
+  D <- rbind(cbind(doo, dop), cbind(dpo, dpp))
+
+  colnames(D)
+
   H <- D + base::t(D)
 
+  print(dim(D))
+  # total distance from obs to preds
+  #H <- h#h[1:nrow(doo), (nrow(doo)+ 1 : ncol(D))]
+
+
+  pred_data <- dplyr::filter(pred_data, pid %in% colnames(H))
   # NB replace here by the variable used for spatial weights
-  afv <- obs_data[c('locID', 'addfunccol')] %>% distinct()
+  afv1 <-  obs_data[c('locID', addfunccol)] %>% distinct()
+  afv2 <- pred_data[c('locID', addfunccol)] %>% distinct()
+
+  print(head(afv1))
+  print(head(afv2))
+  afv <- rbind(afv1, afv2)
 
   # codes from SSN::glmssn
   nsofar <- 0
@@ -38,32 +174,57 @@ dist_wei_mat <- function(path = path){
   dist.junc[(nsofar + 1):(nsofar + ni), (nsofar + 1):(nsofar + ni)] <-
     distmat[ordpi, ordpi, drop = F]
   b.mat <- pmin(dist.junc, base::t(dist.junc))
+  colnames(b.mat) <- colnames(D)
+  rownames(b.mat) <- rownames(D)
   dist.hydro <- as.matrix(dist.junc + base::t(dist.junc))
   flow.con.mat <- 1 - (b.mat > 0) * 1
+  colnames(b.mat) <- colnames(D)
+  rownames(b.mat) <- rownames(D)
 
   n.all <- ni
   # weights matrix
-  w.matrix <- sqrt(pmin(outer(afv[, 'addfunccol'],rep(1, times = n.all)),
-                        base::t(outer(afv[, 'addfunccol'],rep(1, times = n.all) ))) /
-                     pmax(outer(afv[, 'addfunccol'],rep(1, times = n.all)),
-                          base::t(outer(afv[, 'addfunccol'], rep(1, times = n.all))))) *
+  w.matrix <- sqrt(pmin(outer(afv[, addfunccol],rep(1, times = n.all)),
+                        base::t(outer(afv[, addfunccol],rep(1, times = n.all) ))) /
+                     pmax(outer(afv[, addfunccol],rep(1, times = n.all)),
+                          base::t(outer(afv[, addfunccol], rep(1, times = n.all))))) *
     flow.con.mat
 
   # Euclidean distance
 
   obs_data_coord <- data.frame(n@obspoints@SSNPoints[[1]]@point.coords)
   obs_data_coord$locID <- factor(1:nrow(obs_data_coord))
+  obs_data_coord$locID <- as.numeric(as.character(obs_data_coord$locID))
 
+  obs_data$locID <- as.numeric(factor(obs_data$locID))
   obs_data <- obs_data %>% left_join(obs_data_coord, by = c('locID'))
   obs_data$point <- 'Obs'
 
+  pred_data_coord <- data.frame(n@predpoints@SSNPoints[[1]]@point.coords)
+  pred_data_coord$locID <- factor( (max(as.numeric(as.character(obs_data_coord$locID))) + 1)
+                                   :(nrow(pred_data_coord)+ (max(as.numeric(as.character(obs_data_coord$locID))) )))
+  pred_data_coord$locID <- as.numeric(as.character(pred_data_coord$locID))
 
-  e <- obs_data %>%
+  pred_data$locID <- as.numeric(factor(pred_data$locID)) + max(obs_data$locID )
+  pred_data <- pred_data %>% left_join(pred_data_coord, by = c('locID'))
+  pred_data$point <- 'preds'
+
+  all_data <- rbind(obs_data[c('coords.x1', 'coords.x2')],
+                    pred_data[c('coords.x1', 'coords.x2')])
+
+  e <- all_data %>%
     dplyr::select('coords.x1', 'coords.x2') %>%
     dist(., method = "euclidean", diag = FALSE, upper = FALSE) %>% as.matrix()
+  colnames(e) <- colnames(D)
+  rownames(e) <- rownames(D)
 
   list(e = e, D = D, H = H, w.matrix = w.matrix, flow.con.mat = flow.con.mat)
 }
+
+#mat_all_preds <- dist_wei_mat_preds(path = path,  net = 2, addfunccol='afvArea')
+
+
+
+
 
 #' A simple modeling function using a formula and data
 #'
@@ -98,12 +259,16 @@ mylm <- function(formula, data) {
 
 #' Fits a mixed regression model using Stan
 #' It requires the same number of observation/locations per day.
-#' Missing values are alloed in the response but not in the covariates.
+#' It requires location id (locID) and points id (pid).
+#' The locID are unique for each site.
+#' The pid is unique for each observation.
+#' Missing values are allowed in the response but not in the covariates.
 #'
+#' @param path Path with the name of the SSN object
 #' @param formula A formula as in lm()
 #' @param data A data.frame containing the locations, dates, covariates and the response variable
-#' @param ssn A .SSN object
-#' @param CorModels Correlation structure
+#' @param CorModels Spatial correlation structure
+#' @param TempModel Temporal structure (ar = Autorregressive; var = Vector autorregression)
 #' @param iter Number of iterations
 #' @param warmup Warm up samples
 #' @param chains Number of chains
@@ -123,14 +288,20 @@ mylm <- function(formula, data) {
 #' #                    warmup = 1500,
 #' #                    chains = 3)
 
+
 ssnbayes <- function(formula = formula,
                      data = data,
-                     ssn = ssn,
+                     path = path,
+                     TempModel = "ar",
                      CorModels = "Exponential.tailup",
                      iter = 3000,
                      warmup = 1500,
                      chains = 3,
-                     refresh = max(iter/100, 1)){
+                     refresh = max(iter/100, 1),
+                     net = 1,
+                     addfunccol = addfunccol,
+                     loglik = F,
+                     ssn_object = T){
 
 
   # Cov
@@ -168,10 +339,10 @@ ssnbayes <- function(formula = formula,
     int<lower = 0> N_y_obs; // number observed values
     int<lower = 0> N_y_mis; // number missing values
 
-    int<lower = 1> i_y_obs[N_y_obs,T] ;
-    int<lower = 1> i_y_mis[N_y_mis,T] ;
+    int<lower = 1> i_y_obs[N_y_obs] ;  //[N_y_obs,T]
+    int<lower = 1> i_y_mis[N_y_mis] ;  // N_y_mis,T]
 
-    vector[N_y_obs * T] y_obs;    //matrix[N_y_obs,1] y_obs[T];
+    vector[N_y_obs] y_obs;    //matrix[N_y_obs,1] y_obs[T];
 
     matrix[N, N] W ; // spatial weights
     matrix[N, N] h ; // total hydrological dist
@@ -181,6 +352,7 @@ ssnbayes <- function(formula = formula,
     matrix[N, N] flow_con_mat; // flow conected matrix
 
     matrix[N, N] e ; // Euclidean dist mat
+    real<lower=1> alpha_max ;
 
   }'
 
@@ -190,9 +362,19 @@ ssnbayes <- function(formula = formula,
     vector[K] beta;
     real<lower=0> sigma_nug;
 
-    vector[N_y_mis * T] y_mis;//declaring the missing y
-    real phi;
-    '
+    vector[N_y_mis] y_mis;//declaring the missing y
+ //
+  '
+
+
+  param_phi_ar <- '
+    real <lower=-1, upper = 1> phi; // NB
+  '
+  param_phi_var <- '
+    vector<lower=-1, upper = 1> [N] phi  ; // vector of autoregresion pars
+  '
+
+
 
   param_tu <- '
     real<lower=0> sigma_tu;
@@ -236,8 +418,6 @@ ssnbayes <- function(formula = formula,
    matrix[N, N] C_re ;// random effect cov
    matrix[N, N] RE1; // random effect 1
 
-   real<lower=0> alpha_max;
-
    '
 
   tparam_tu <- '
@@ -259,10 +439,11 @@ ssnbayes <- function(formula = formula,
 
 
   tparam_com2 <- '
-    alpha_max = 4 * max(h);
+    y[i_y_obs] = y_obs;
+    y[i_y_mis] = y_mis;
     for (t in 1:T){
-      y[ i_y_mis[,t] ] = y_mis[((t - 1) * N_y_mis + 1):(t * N_y_mis)];
-      y[ i_y_obs[,t] ] = y_obs[((t - 1) * N_y_obs + 1):(t * N_y_obs)];
+      //y[ i_y_obs[,t] ] = y_obs[((t - 1) * N_y_obs + 1):(t * N_y_obs)];
+      //y[ i_y_mis[,t] ] = y_mis[((t - 1) * N_y_mis + 1):(t * N_y_mis)];
       Y[t] = y[((t - 1) * N + 1):(t * N)];
     }
 
@@ -270,12 +451,24 @@ ssnbayes <- function(formula = formula,
         mu[1] = X[1] * beta;
     epsilon[1] = Y[1] - mu[1];
 
-    for (t in 2:T){
+'
+
+  tparam_com_ar <- '
+        for (t in 2:T){
         mu[t] = X[t] * beta;
         epsilon[t] = Y[t] - mu[t];
-        mu[t] = mu[t] + phi * epsilon[t-1];
+        mu[t] = mu[t] + phi * epsilon[t-1]; //
     }
-'
+
+  '
+
+  tparam_com_var <- '
+        for (t in 2:T){
+        mu[t] = X[t] * beta;
+        epsilon[t] = Y[t] - mu[t];
+        mu[t] = mu[t] + phi .* epsilon[t-1]; // element wise mult two vectors
+    }
+  '
 
 
   tparam_tu2_exp <- '
@@ -386,30 +579,29 @@ ssnbayes <- function(formula = formula,
 
 '
 
-
-
   model_com <- '
   model {
     for (t in 1:T){
-      target += multi_normal_cholesky_lpdf(Y[t] | mu[t], cholesky_decompose(C_tu + C_td + C_re + C_ed + var_nug * I) );
+      target += multi_normal_cholesky_lpdf(Y[t] | mu[t], cholesky_decompose(C_tu + C_td + C_re + C_ed + var_nug * I + 1e-6) );
     }
 
-    sigma_nug ~ cauchy(0,1); // prior nugget effect
-    phi ~ uniform(-1, 1); //
+    sigma_nug ~ uniform(0,50); // cauchy(0,1) prior nugget effect
+    //phi ~ uniform(-1, 1); //
+    phi ~ normal(0.5,0.3); //NB informative
 '
 
   model_tu <- '
-    sigma_tu ~ cauchy(0,2);  // prior sd  tail-up model
+    sigma_tu ~ uniform(0,100);  // cauchy(0,2) prior sd  tail-up model
     alpha_tu ~ uniform(0, alpha_max);
 '
 
   model_td <- '
-    sigma_td ~ cauchy(0,2); // sd tail-down
+    sigma_td ~ uniform(0,100); // sd tail-down
     alpha_td ~ uniform(0, alpha_max);
 '
 
   model_ed <- '
-    sigma_ed ~ cauchy(0,2); // sd Euclidean dist
+    sigma_ed ~ uniform(0,100); // sd Euclidean dist
     alpha_ed ~ uniform(0, alpha_max); // Euclidean dist range
 '
 
@@ -418,7 +610,18 @@ ssnbayes <- function(formula = formula,
 '
 
 
-  ssn_ar1 <- paste(
+  gen_quant <- '
+  generated quantities {
+   vector[T] log_lik;
+   // vector[N] log_lik[T];
+     for (t in 1:T){
+       log_lik[t] = multi_normal_cholesky_lpdf(Y[t]|mu[t],
+        cholesky_decompose(C_tu + C_td + C_re + C_ed + var_nug * I + 1e-6) );
+      }
+  }
+  '
+
+  ssn_ar <- paste(
     data_com,
 
     param_com,
@@ -427,6 +630,10 @@ ssnbayes <- function(formula = formula,
     if(cor_td %in% 1:3) param_td,
     if(cor_ed %in% 1:3) param_ed,
     if(cor_re %in% 1:3) param_re,
+
+    if(TempModel == 'ar') param_phi_ar,
+    if(TempModel == 'var') param_phi_var,
+
     '}',
 
     tparam_com,
@@ -435,6 +642,11 @@ ssnbayes <- function(formula = formula,
     if(cor_ed %in% 1:3)tparam_ed,
     if(cor_re %in% 1:3) tparam_re,
     tparam_com2,
+
+
+    if(TempModel == 'ar') tparam_com_ar,
+    if(TempModel == 'var') tparam_com_var,
+
 
     #ifelse(cor_tu %in% 1:3, tparam_tu2, 'C_tu = rep_matrix(0, N, N);'),
     case_when(cor_tu == 1 ~ tparam_tu2_exp,
@@ -460,10 +672,13 @@ ssnbayes <- function(formula = formula,
     if(cor_td %in% 1:3)model_td,
     if(cor_ed %in% 1:3)model_ed,
     if(cor_re %in% 1:3) model_re,
-    '}'
+    '}',
+
+    if(loglik == T) gen_quant
   )
 
   `%notin%` <- Negate(`%in%`)
+
   pars <- c(
     case_when(cor_tu %in% 1:3 ~ c('var_tu', 'alpha_tu'),
               cor_tu %notin% 1:3 ~ ""),
@@ -476,6 +691,9 @@ ssnbayes <- function(formula = formula,
 
     case_when(cor_re %in% 1:3 ~ c('var_re', 'alpha_re'),
               cor_re %notin% 1:3 ~ ""),
+
+    if(loglik == T) 'log_lik',
+
     'var_nug',
     'beta',
     'phi',
@@ -492,13 +710,19 @@ ssnbayes <- function(formula = formula,
   design_matrix <- out_list$X # design matrix
 
   obs_data <- data
-  N <- nrow(obs_data)
-
   ndays <- length(unique(obs_data$date))
-  nobs <- nrow(obs_data)/ndays
+  N <- nrow(obs_data)/ndays #nobs
 
-  train <- nrow(obs_data[obs_data$date==1 & !is.na(obs_data$y),])
-  test <- nrow(obs_data[obs_data$date==1 & is.na(obs_data$y),])
+
+  nobs <- nrow(obs_data)/ndays #nobs
+
+  obs_data$date_num <- as.numeric(factor(obs_data$date))
+
+  resp_var_name <- gsub("[^[:alnum:]]", " ", formula[2])
+  obs_data$y <- obs_data[,names(obs_data) %in% resp_var_name]
+
+  train <- nrow(obs_data[obs_data$date_num==1 & !is.na(obs_data$y),])
+  test <- nrow(obs_data[obs_data$date_num==1 & is.na(obs_data$y),])
   #train <- points - round(points * 0.30)
   #test <- round(points * 0.30)
 
@@ -511,37 +735,49 @@ ssnbayes <- function(formula = formula,
   #                matrix(X[,4],nrow = ndays, ncol = nobs, byrow = T), along = 3)
 
   # NB: this array order is Stan specific
-  Xarray <- aperm(array( c(X), dim=c(nobs, ndays, ncol(X)) ),c(2, 1, 3))
+  Xarray <- aperm(array( c(X), dim=c(N, ndays, ncol(X)) ),c(2, 1, 3))
 
 
-  ys <- response[!is.na(response)]#obs_data[!is.na(obs_data$y),]$y
-  Yarray <- array(matrix(ys, nrow = ndays, ncol = train, byrow = T),
-                  dim = c(ndays, train))
+  y_obs <- response[!is.na(response)]#obs_data[!is.na(obs_data$y),]$y
+  #Yarray <- array(matrix(ys, nrow = ndays, ncol = train, byrow = T),
+  #                dim = c(ndays, train))
 
   # index for observed values
   i_y_obs <- obs_data[!is.na(obs_data$y),]$pid
-  i_y_obs_array <- matrix(i_y_obs, nrow = train , ncol = ndays, byrow = F)
+  # i_y_obs <- matrix(i_y_obs, nrow = train , ncol = ndays, byrow = F)
 
 
   # index for missing values
   i_y_mis <- obs_data[is.na(obs_data$y),]$pid
-  i_y_mis_array <- matrix(i_y_mis, nrow = test, ncol = ndays, byrow = F)
+  #  i_y_mis <- matrix(i_y_mis, nrow = test, ncol = ndays, byrow = F)
 
-  mat_all <- dist_wei_mat(ssn)
+  if(ssn_object == T){ # the ssn object exist?
+    mat_all <- dist_wei_mat(path = path, net = net, addfunccol = addfunccol)
+  }
 
-  data_list <- list(N = nobs, # obs + preds  points
+  if(ssn_object == F){ # the ssn object does not exist- purely spatial
+    di <- dist(data[data$date == 1,c('lon', 'lat')],
+               method = "euclidean",
+               diag = FALSE,
+               upper = FALSE) %>% as.matrix()
+    mat_all <-  list(e = di, D = di, H = di, w.matrix = di, flow.con.mat = di)
+  }
+
+
+  data_list <- list(N = N, # obs + preds  points
                     T = ndays, # time points
                     K = ncol(X),  # ncol of design matrix
-                    y_obs = ys,# y values in the obs df
+                    y_obs = y_obs,# y values in the obs df
 
-                    N_y_obs = nrow(i_y_obs_array),  # numb obs points
-                    N_y_mis = nrow(i_y_mis_array), # numb preds points
+                    N_y_obs = length(i_y_obs),  #nrow(i_y_obs) numb obs points
+                    N_y_mis = length(i_y_mis), #nrow(i_y_mis) numb preds points
 
-                    i_y_obs = i_y_obs_array, # index of obs points
-                    i_y_mis = i_y_mis_array, # index of preds points
+                    i_y_obs = i_y_obs, # index of obs points
+                    i_y_mis = i_y_mis, # index of preds points
 
                     X = Xarray, # design matrix
-                    mat_all = mat_all) # a list with all the distance/weights matrices
+                    mat_all = mat_all,
+                    alpha_max = 4 * max(mat_all$H) ) # a list with all the distance/weights matrices
 
 
   data_list$e = data_list$mat_all$e #Euclidean dist
@@ -557,19 +793,297 @@ ssnbayes <- function(formula = formula,
 
   data_list$I = diag(1, nrow(data_list$W), nrow(data_list$W))  # diagonal matrix
 
-  fit <- rstan::stan(model_code = ssn_ar1,
-                     model_name = "ssn_ar1",
+  phi_ini <- ifelse(TempModel == "ar", 0.5, rep(0.5,N))
+
+
+  ini <- function(){list(var_nug =  .1, phi = phi_ini #phi= rep(0.5,N)
+                         #y = rep( mean(obs_data$temp, na.rm = T),T*N)
+  )}
+
+
+  fit <- rstan::stan(model_code = ssn_ar,
+                     model_name = "ssn_ar",
                      data = data_list,
                      pars = pars,
                      iter = iter,
                      warmup = warmup,
+                     init = ini,
                      chains = chains,
                      verbose = F,
                      #seed = seed,
                      refresh = refresh
   )
+  attributes(fit_ar)$formula <- formula
 
   fit
 }
 
+
+
+#' Performs spatial prediction in R using a stanfit object from ssnbayes()
+#' It will take an observed and a prediction data frame.
+#' It requires the same number of observation/locations per day.
+#' It requires location id (locID) and points id (pid).
+#' The locID are unique for each site.
+#' The pid is unique for each observation.
+#' Missing values are allowed in the response but not in the covariates.
+#'
+#' @param stanfit A stanfit object returned from ssnbayes
+#' @param mat_all_preds A list with the distance/weights matrices
+#' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
+#' @param start (optional) The starting location id
+#' @param chunks_size (optional) the number of locID to make prediction from
+#' @param obs_data The observed data frame
+#' @param pred_data The predicted data frame
+#' @param net (optional) Network from the SSN object
+#' @return A data frame
+#' @export
+#' @importFrom dplyr mutate %>% distinct left_join case_when
+#' @importFrom plyr .
+#' @importFrom SSN importSSN getSSNdata.frame
+#' @importFrom rstan stan
+#' @importFrom stats dist
+#' @examples
+
+
+krig <- function(stanfit = stanfit,
+                 mat_all_preds = mat_all_preds,
+                 nsamples = 10,
+                 start = 1,
+                 chunks_size = 50,
+                 obs_data = obs_data,
+                 pred_data = pred_data,
+                 net = net){
+
+  formula <- as.formula(attributes(stanfit)$formula)
+
+  phi <- rstan::extract(stanfit, pars = 'phi')$phi
+
+  samples <- sample(1:nrow(phi), nsamples, replace = F)
+  phi <- phi[samples]
+
+  betas <- rstan::extract(stanfit, pars = 'beta')$beta
+  betas <- betas[samples,]
+
+  var_nug <- rstan::extract(stanfit, pars = 'var_nug')$var_nug
+  var_nug <- var_nug[samples]
+
+  var_td <- rstan::extract(stanfit, pars = 'var_td')$var_td #NB
+  var_td <- var_td[samples]
+
+  alpha_td <- rstan::extract(stanfit, pars = 'alpha_td')$alpha_td #NB
+  alpha_td <- alpha_td[samples]
+
+  locID_obs <- sort(unique(obs_data$locID))
+
+  pred_data$temp <- NA
+
+  locID_pred <- sort(unique(pred_data$locID)) #6422
+
+  pred_data$locID0 <- as.numeric(factor(pred_data$locID)) # conseq locID
+  pred_data$locID0 <- pred_data$locID0 + length(locID_obs) # adding numb of locID in obs dataset
+
+  locID_pred0 <- sort(unique(pred_data$locID0))
+
+  # obs data frame. no missing in temp
+
+  locID_pred_1 <- locID_pred0[start:(start + chunks_size - 1)] # NB
+
+  pred_data_1 <- pred_data[pred_data$locID0 %in% locID_pred_1,]
+
+  #dim(pred_data_1)
+
+  N <- nrow(pred_data_1)
+
+  #   formula = temp ~ SLOPE + elev + CUMDRAINAG + air_temp + sin + cos
+
+  options(na.action='na.pass') # to preserve the NAs
+  out_list <- mylm(formula = formula, data = obs_data) # produces the design matrix
+
+  response_obs <- out_list$y # response variable
+  design_matrix_obs <- out_list$X # design matrix
+
+  out_list_pred <- mylm(formula = formula, data = pred_data_1)
+  X_pred <- as.matrix(out_list_pred$X)
+
+
+  locID_pred2 <- unique(pred_data_1$pid)
+  locID_obs2 <- sort(unique(obs_data$pid))
+
+  locIDs <- unique(obs_data$locID)
+  NlocIDs <- length( unique(obs_data$locID))
+
+  n_obs <- NlocIDs
+  n_pred <- unique(pred_data_1$locID)
+
+  X_obs2 <- design_matrix_obs
+  X_pred2 <- X_pred
+
+  Y2 <- response_obs
+
+
+  mat_all_preds_1 <- lapply(mat_all_preds,
+                            function(x){x[c(locID_obs, locID_pred_1),
+                                          c(locID_obs, locID_pred_1)  ] })
+
+
+  mat_all_preds_1 <- lapply(mat_all_preds_1, function(x){colnames(x) = (1:ncol(x));
+  rownames(x) = (1:nrow(x)); x  })
+
+
+  dim(mat_all_preds_1$H)
+
+  h <- mat_all_preds_1$H # hydro distance matrix
+  D <- mat_all_preds_1$D
+  fc <- mat_all_preds_1$flow.con.mat
+
+  total_numb_points <- length(c(locID_obs, locID_pred_1))
+
+  niter <- nsamples
+
+  # time
+
+  t <- length(unique(obs_data$date))
+
+  Ypred <- matrix(NA, (nrow(pred_data_1)/t)*t, niter)
+  #print('kriging')
+
+  for(k in 1:niter){
+
+    #print(k)
+
+    C_t <- (phi[k] ^ abs(outer(1:t,1:t,"-")))/(1-( phi[k]^2) )
+    inv_t <- solve(C_t)
+
+    C_td <- matrix(NA, total_numb_points, total_numb_points)
+    for(i in 1:total_numb_points){
+      for(j in 1:total_numb_points){
+        C_td[i,j] <- ifelse(fc[i,j] == 1,
+                            var_td[k] * exp(- 3 * h[i,j] / alpha_td[k]),
+                            var_td[k] * exp(- 3 * (D[i,j] + D[j,i]) / alpha_td[k])
+        )
+      }
+    }
+    C_td <- C_td + var_nug[k] * diag(total_numb_points)
+
+    Coo_td <- C_td[1:n_obs,1:n_obs]
+    Cop_td <- C_td[1:n_obs,(n_obs+1):(n_obs+chunks_size)]
+
+
+    # Separable covariance space-time matrix
+
+    Coo_all <- kronecker(C_t, Coo_td, FUN = "*")
+    inv_all  <- chol2inv(chol(Coo_all))
+    Cop_all <- kronecker(C_t, Cop_td, FUN = "*")
+
+    mu = X_obs2 %*% betas[k,]
+    mu_pred = X_pred2 %*% betas[k,]
+    Ypred[,k] = mu_pred + t(Cop_all) %*%
+      inv_all %*% (Y2 - mu)
+
+  }
+
+
+  pred_data_1$ypred_all <- apply(Ypred, 1,mean)
+
+  cbind(pred_data_1[,c('locID0','locID','date')], data.frame(Ypred))
+
+}
+
+
+
+#' Performs spatial prediction in R using a stanfit object from ssnbayes()
+#' It will take an observed and a prediction data frame.
+#' It requires the same number of observation/locations per day.
+#' It requires location id (locID) and points id (pid).
+#' The locID are unique for each site.
+#' The pid is unique for each observation.
+#' Missing values are allowed in the response but not in the covariates.
+#'
+#' @param path Path with the name of the SSN object
+#' @param obs_data The observed data frame
+#' @param stanfit A stanfit object returned from ssnbayes
+#' @param pred_data The predicted data frame
+#' @param net (optional) Network from the SSN object
+#' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
+#' @param addfunccol The variable used for spatial weights
+#' @param chunks_size (optional) the number of locID to make prediction from
+
+#' @return A data frame
+#' @export
+#' @importFrom dplyr mutate %>% distinct left_join case_when
+#' @importFrom plyr .
+#' @importFrom SSN importSSN getSSNdata.frame
+#' @importFrom rstan stan
+#' @importFrom stats dist
+#' @examples
+
+
+pred_ssnbayes <- function(
+  path = path,
+  obs_data = obs_data,
+  stanfit = stanfit,
+  pred_data = pred_data,
+  net = 1,
+  nsamples = 100, # number of samples to use from the posterior in the stanfit object
+  addfunccol = 'afvArea', # variable used for spatial weights
+  locID_pred = locID_pred, # location ID of the points to predict
+  #ssn_object = T # if it will use an SSN object
+  #CorModels = "Exponential.tailup",
+  chunks_size = chunks_size
+){
+
+  mat_all_preds <- dist_wei_mat_preds(path = path,
+                                      net = net,
+                                      addfunccol = addfunccol)
+
+  # the row and col names is not conseq
+  rownames(mat_all_preds$e) <- 1:(nrow(mat_all_preds$e))
+  colnames(mat_all_preds$e) <- 1:(nrow(mat_all_preds$e))
+
+  rownames(mat_all_preds$D) <- 1:(nrow(mat_all_preds$D))
+  colnames(mat_all_preds$D) <- 1:(nrow(mat_all_preds$D))
+
+  rownames(mat_all_preds$H) <- 1:(nrow(mat_all_preds$H))
+  colnames(mat_all_preds$H) <- 1:(nrow(mat_all_preds$H))
+
+  rownames(mat_all_preds$w.matrix) <- 1:(nrow(mat_all_preds$w.matrix))
+  colnames(mat_all_preds$w.matrix) <- 1:(nrow(mat_all_preds$w.matrix))
+
+  rownames(mat_all_preds$flow.con.mat) <- 1:(nrow(mat_all_preds$flow.con.mat))
+  colnames(mat_all_preds$flow.con.mat) <- 1:(nrow(mat_all_preds$flow.con.mat))
+
+  obs_points <- length(unique(obs_data$locID))
+  pred_points <- length(unique(pred_data$locID))
+
+  #chunks_size <- length(unique(obs_data$locID))
+
+  if(missing(chunks_size)) chunks_size <- pred_points
+
+  out_all <- NULL
+
+  is <- ceiling(pred_points/chunks_size)
+
+  for(j in 1:is){ #NB
+    print('krig_funct')
+    print(j)
+    start <- ((j - 1) * chunks_size + 1)
+
+    chunks_size <- ifelse(j != is, chunks_size, pred_points - (j - 1) * chunks_size)
+
+    out <- krig(stanfit = stanfit,
+                mat_all_preds = mat_all_preds,
+                nsamples = nsamples,
+                start = start,
+                chunks_size = chunks_size,
+                obs_data = obs_data,
+                pred_data = pred_data,
+                net = 2)
+
+    out_all <- rbind(out_all, out)
+  }
+
+  data.frame(out_all)
+
+}
 

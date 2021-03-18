@@ -4,10 +4,14 @@
 \alias{dist_wei_mat}
 \title{Creates a list of distances and weights}
 \usage{
-dist_wei_mat(path = path)
+dist_wei_mat(path = path, net = 1, addfunccol = "addfunccol")
 }
 \arguments{
 \item{path}{Path to the files}
+
+\item{net}{(optional) A network from the SSN object}
+
+\item{addfunccol}{(optional) A parameter to compute the spatial weights}
 }
 \value{
 A list of matrices
