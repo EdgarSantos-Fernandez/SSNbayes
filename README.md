@@ -9,6 +9,9 @@ remotes::install_github("EdgarSantos-Fernandez/SSNbayes")
 
 Fig: (a) 
 (b) Evolution of the posterior  
+![Alt text](https://github.com/EdgarSantos-Fernandez/SSNbayes/blob/master/network exceedance probability.gif?raw=true "Title")
+Fig: 
+![Alt text](https://github.com/EdgarSantos-Fernandez/SSNbayes/blob/master/mean_temperature_boise.gif?raw=true "Title")
 
 
 
