@@ -1,6 +1,6 @@
 Package: SSNbayes
 Type: Package
-Title: SSNbayes: An R package for Bayesian spatial and spatio-temporal analysis in stream network
+Title: SSNbayes: An R package for Bayesian spatio-temporal analysis in stream networks
 Version: 0.0.1
 Author: Edgar Santos-Fernandez
 Maintainer: Edgar Santos-Fernandez <santosfe@qut.edu.au>
