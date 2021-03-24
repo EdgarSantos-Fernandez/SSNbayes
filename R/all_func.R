@@ -94,9 +94,6 @@ dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
   obs_data$coords.x1 <- obs_data$NEAR_X
   obs_data$coords.x2 <- obs_data$NEAR_Y
 
-  print(obs_data$coords.x1)
-  print(obs_data$coords.x1)
-
   coor <- n@obspoints@SSNPoints[[1]]@point.coords
   e <- coor %>%
     dist(., method = "euclidean", diag = FALSE, upper = FALSE) %>% as.matrix()
@@ -820,7 +817,7 @@ ssnbayes <- function(formula = formula,
                      #seed = seed,
                      refresh = refresh
   )
-  attributes(fit_ar)$formula <- formula
+  attributes(fit)$formula <- formula
 
   fit
 }
