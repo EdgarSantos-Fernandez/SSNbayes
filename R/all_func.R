@@ -48,57 +48,64 @@ collapse <- function(t){
 #'
 
 
-dist_wei_mat <- function(path = path,
- net = 1,
- addfunccol='addfunccol'){
+dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
 
-    n  <- importSSN(path, o.write = TRUE)
-    obs_data <- getSSNdata.frame(n, "Obs")
+  n  <- importSSN(path, o.write = TRUE)
+  obs_data <- getSSNdata.frame(n, "Obs")
 
-    # creating distance matrices
-    D <- readRDS(paste0(path, '/distance/obs/dist.net', net, '.RData')) # distance between observations
+  # creating distance matrices
+  D <- readRDS(paste0(path, '/distance/obs/dist.net', net, '.RData')) # distance between observations
 
-    # total distance
-    H <- D + base::t(D)
+  # total distance
+  H <- D + base::t(D)
 
-    obs_data <- dplyr::filter(obs_data, pid %in% colnames(H))
-    # NB replace here by the variable used for spatial weights
-    afv <- obs_data[c('locID', addfunccol)] %>% distinct()
+  obs_data <- dplyr::filter(obs_data, pid %in% colnames(H))
+  # NB replace here by the variable used for spatial weights
+  afv <- obs_data[c('locID', addfunccol)] %>% distinct()
 
-    # codes from SSN::glmssn
-    nsofar <- 0
-    dist.junc <- matrix(0, nrow = length(afv[, 1]), ncol = length(afv[,1]))
-    distmat <- D
-    ni <- length(distmat[1,])
-    ordpi <- order(as.numeric(rownames(distmat)))
-    dist.junc[(nsofar + 1):(nsofar + ni), (nsofar + 1):(nsofar + ni)] <-
-      distmat[ordpi, ordpi, drop = F]
-    b.mat <- pmin(dist.junc, base::t(dist.junc))
-    dist.hydro <- as.matrix(dist.junc + base::t(dist.junc))
-    flow.con.mat <- 1 - (b.mat > 0) * 1
+  # codes from SSN::glmssn
+  nsofar <- 0
+  dist.junc <- matrix(0, nrow = length(afv[, 1]), ncol = length(afv[,1]))
+  distmat <- D
+  ni <- length(distmat[1,])
+  ordpi <- order(as.numeric(rownames(distmat)))
+  dist.junc[(nsofar + 1):(nsofar + ni), (nsofar + 1):(nsofar + ni)] <-
+    distmat[ordpi, ordpi, drop = F]
+  b.mat <- pmin(dist.junc, base::t(dist.junc))
+  dist.hydro <- as.matrix(dist.junc + base::t(dist.junc))
+  flow.con.mat <- 1 - (b.mat > 0) * 1
 
-    n.all <- ni
-    # weights matrix
-    w.matrix <- sqrt(pmin(outer(afv[, addfunccol],rep(1, times = n.all)),
-                          base::t(outer(afv[, addfunccol],rep(1, times = n.all) ))) /
-                       pmax(outer(afv[, addfunccol],rep(1, times = n.all)),
-                            base::t(outer(afv[, addfunccol], rep(1, times = n.all))))) *
-      flow.con.mat
+  n.all <- ni
+  # weights matrix
+  w.matrix <- sqrt(pmin(outer(afv[, addfunccol],rep(1, times = n.all)),
+                        base::t(outer(afv[, addfunccol],rep(1, times = n.all) ))) /
+                     pmax(outer(afv[, addfunccol],rep(1, times = n.all)),
+                          base::t(outer(afv[, addfunccol], rep(1, times = n.all))))) *
+    flow.con.mat
 
-    # Euclidean distance
+  # Euclidean distance
 
-    obs_data_coord <- data.frame(n@obspoints@SSNPoints[[1]]@point.coords)
-    obs_data_coord$locID <- factor(1:nrow(obs_data_coord))
+  #obs_data_coord <- data.frame(n@obspoints@SSNPoints[[1]]@point.coords)
+  #obs_data_coord$locID <- factor(1:nrow(obs_data_coord))
 
-    obs_data <- obs_data %>% left_join(obs_data_coord, by = c('locID'))
-    obs_data$point <- 'Obs'
+  #obs_data <- obs_data %>% left_join(obs_data_coord, by = c('locID'))
+  obs_data$point <- 'Obs'
 
+  obs_data$coords.x1 <- obs_data$NEAR_X
+  obs_data$coords.x2 <- obs_data$NEAR_Y
 
-    e <- obs_data %>%
-      dplyr::select('coords.x1', 'coords.x2') %>%
-      dist(., method = "euclidean", diag = FALSE, upper = FALSE) %>% as.matrix()
+  print(obs_data$coords.x1)
+  print(obs_data$coords.x1)
 
-      list(e = e, D = D, H = H, w.matrix = w.matrix, flow.con.mat = flow.con.mat)
+  coor <- n@obspoints@SSNPoints[[1]]@point.coords
+  e <- coor %>%
+    dist(., method = "euclidean", diag = FALSE, upper = FALSE) %>% as.matrix()
+
+  #e <- obs_data %>%
+  #  dplyr::select('coords.x1', 'coords.x2') %>%
+  #  dist(., method = "euclidean", diag = FALSE, upper = FALSE) %>% as.matrix()
+
+  list(e = e, D = D, H = H, w.matrix = w.matrix, flow.con.mat = flow.con.mat)
 }
 
 
