@@ -37,6 +37,8 @@ pred_ssnbayes(
 
 \item{addfunccol}{The variable used for spatial weights}
 
+\item{locID_pred}{(optional) the location id for the predictions. Used when the number of pred locations is large.}
+
 \item{chunks_size}{(optional) the number of locID to make prediction from}
 }
 \value{
@@ -50,4 +52,13 @@ It requires location id (locID) and points id (pid).
 The locID are unique for each site.
 The pid is unique for each observation.
 Missing values are allowed in the response but not in the covariates.
+}
+\examples{
+#pred <- pred_ssnbayes(path = path,
+#obs_data = clear,
+#stanfit = fit_ar,
+#pred_data = preds,
+#net = 2,
+#nsamples = 100, # number of samples to use from the posterior in the stanfit object
+#addfunccol = 'afvArea') # variable used for spatial weights
 }

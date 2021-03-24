@@ -156,17 +156,12 @@ dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
   H <- D + base::t(D)
 
   print(dim(D))
-  # total distance from obs to preds
-  #H <- h#h[1:nrow(doo), (nrow(doo)+ 1 : ncol(D))]
-
 
   pred_data <- dplyr::filter(pred_data, pid %in% colnames(H))
   # NB replace here by the variable used for spatial weights
   afv1 <-  obs_data[c('locID', addfunccol)] %>% distinct()
   afv2 <- pred_data[c('locID', addfunccol)] %>% distinct()
 
-  print(head(afv1))
-  print(head(afv2))
   afv <- rbind(afv1, afv2)
 
   # codes from SSN::glmssn
@@ -277,6 +272,10 @@ mylm <- function(formula, data) {
 #' @param warmup Warm up samples
 #' @param chains Number of chains
 #' @param refresh Sampler refreshing rate
+#' @param net The network id (optional). Used when the SSN object cotains multiple networks.
+#' @param addfunccol Variable to compute the additive function. Used to compute the spatial weights.
+#' @param loglik Logic parameter denoting if the loglik will be computed by the model.
+#' @param ssn_object Logic parameter denoting if the SSN objects is available. If not, only Euclidean distance models are used.
 #' @return A list with the fit
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
@@ -847,8 +846,7 @@ ssnbayes <- function(formula = formula,
 #' @importFrom SSN importSSN getSSNdata.frame
 #' @importFrom rstan stan
 #' @importFrom stats dist
-#' @examples
-
+#' @importFrom stats as.formula
 
 krig <- function(stanfit = stanfit,
                  mat_all_preds = mat_all_preds,
@@ -1012,6 +1010,8 @@ krig <- function(stanfit = stanfit,
 #' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
 #' @param addfunccol The variable used for spatial weights
 #' @param chunks_size (optional) the number of locID to make prediction from
+#' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
+
 
 #' @return A data frame
 #' @export
@@ -1021,6 +1021,14 @@ krig <- function(stanfit = stanfit,
 #' @importFrom rstan stan
 #' @importFrom stats dist
 #' @examples
+#' #pred <- pred_ssnbayes(path = path,
+#' #obs_data = clear,
+#' #stanfit = fit_ar,
+#' #pred_data = preds,
+#' #net = 2,
+#' #nsamples = 100, # number of samples to use from the posterior in the stanfit object
+#' #addfunccol = 'afvArea') # variable used for spatial weights
+
 
 
 pred_ssnbayes <- function(

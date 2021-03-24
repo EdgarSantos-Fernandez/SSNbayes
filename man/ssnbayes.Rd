@@ -43,6 +43,14 @@ ssnbayes(
 \item{chains}{Number of chains}
 
 \item{refresh}{Sampler refreshing rate}
+
+\item{net}{The network id (optional). Used when the SSN object cotains multiple networks.}
+
+\item{addfunccol}{Variable to compute the additive function. Used to compute the spatial weights.}
+
+\item{loglik}{Logic parameter denoting if the loglik will be computed by the model.}
+
+\item{ssn_object}{Logic parameter denoting if the SSN objects is available. If not, only Euclidean distance models are used.}
 }
 \value{
 A list with the fit
