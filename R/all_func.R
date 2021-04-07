@@ -270,7 +270,7 @@ mylm <- function(formula, data) {
 #' @param path Path with the name of the SSN object
 #' @param formula A formula as in lm()
 #' @param data A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.
-#' @param space_method A list defining if use or not of an SSN object and the spatial correlation structure.
+#' @param space_method A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a a list with the lon and lat for Euclidean distance models.
 #' @param time_method A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.
 #' @param iter Number of iterations
 #' @param warmup Warm up samples

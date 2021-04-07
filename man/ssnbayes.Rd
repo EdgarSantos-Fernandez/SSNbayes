@@ -34,7 +34,7 @@ ssnbayes(
 
 \item{time_method}{A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.}
 
-\item{space_method}{A list defining if use or not of an SSN object and the spatial correlation structure.}
+\item{space_method}{A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a a list with the lon and lat for Euclidean distance models.}
 
 \item{iter}{Number of iterations}
 
