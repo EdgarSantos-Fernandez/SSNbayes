@@ -13,8 +13,8 @@ ssnbayes(
   formula = formula,
   data = data,
   path = path,
-  TempModel = "ar",
-  CorModels = "Exponential.tailup",
+  time_method = time_method,
+  space_method = space_method,
   iter = 3000,
   warmup = 1500,
   chains = 3,
@@ -22,19 +22,19 @@ ssnbayes(
   net = 1,
   addfunccol = addfunccol,
   loglik = F,
-  ssn_object = T
+  seed = seed
 )
 }
 \arguments{
 \item{formula}{A formula as in lm()}
 
-\item{data}{A data.frame containing the locations, dates, covariates and the response variable}
+\item{data}{A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.}
 
 \item{path}{Path with the name of the SSN object}
 
-\item{TempModel}{Temporal structure (ar = Autorregressive; var = Vector autorregression)}
+\item{time_method}{A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.}
 
-\item{CorModels}{Spatial correlation structure}
+\item{space_method}{A list defining if use or not of an SSN object and the spatial correlation structure.}
 
 \item{iter}{Number of iterations}
 
@@ -50,10 +50,10 @@ ssnbayes(
 
 \item{loglik}{Logic parameter denoting if the loglik will be computed by the model.}
 
-\item{ssn_object}{Logic parameter denoting if the SSN objects is available. If not, only Euclidean distance models are used.}
+\item{seed}{(optional) A seed for reproducibility}
 }
 \value{
-A list with the fit
+A list with the model fit
 }
 \description{
 Fits a mixed regression model using Stan
@@ -66,7 +66,8 @@ Missing values are allowed in the response but not in the covariates.
 \examples{
 #fit_td <- ssnbayes(formula = 'y ~ X1 + X2 + X3',
 #                    data = data, ssn = ssn,
-#                    CorModels = "Exponential.taildown",
+#                    space_method = list("use_ssn", "Exponential.taildown"),
+#                    time_method = list("ar", "date"),
 #                    iter = 3000,
 #                    warmup = 1500,
 #                    chains = 3)

@@ -14,6 +14,7 @@
 #'
 
 collapse <- function(t){
+  slot <- NULL
   df_all <- NULL
   for (i in 1:length(t@lines)){
     df <- data.frame(t@lines[[i]]@Lines[[1]]@coords)
@@ -49,7 +50,7 @@ collapse <- function(t){
 
 
 dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
-
+  pid <- NULL
   n  <- importSSN(path, o.write = TRUE)
   obs_data <- getSSNdata.frame(n, "Obs")
 
@@ -127,6 +128,9 @@ dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
 #'
 
 dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
+  netID <- NULL
+  locID <- NULL
+  pid <- NULL
 
   n  <- importSSN(path, predpts = 'preds', o.write = TRUE)
 
@@ -265,9 +269,9 @@ mylm <- function(formula, data) {
 #'
 #' @param path Path with the name of the SSN object
 #' @param formula A formula as in lm()
-#' @param data A data.frame containing the locations, dates, covariates and the response variable
-#' @param CorModels Spatial correlation structure
-#' @param TempModel Temporal structure (ar = Autorregressive; var = Vector autorregression)
+#' @param data A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.
+#' @param space_method A list defining if use or not of an SSN object and the spatial correlation structure.
+#' @param time_method A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.
 #' @param iter Number of iterations
 #' @param warmup Warm up samples
 #' @param chains Number of chains
@@ -275,8 +279,8 @@ mylm <- function(formula, data) {
 #' @param net The network id (optional). Used when the SSN object cotains multiple networks.
 #' @param addfunccol Variable to compute the additive function. Used to compute the spatial weights.
 #' @param loglik Logic parameter denoting if the loglik will be computed by the model.
-#' @param ssn_object Logic parameter denoting if the SSN objects is available. If not, only Euclidean distance models are used.
-#' @return A list with the fit
+#' @param seed (optional) A seed for reproducibility
+#' @return A list with the model fit
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
 #' @importFrom plyr .
@@ -286,17 +290,22 @@ mylm <- function(formula, data) {
 #' @examples
 #' #fit_td <- ssnbayes(formula = 'y ~ X1 + X2 + X3',
 #' #                    data = data, ssn = ssn,
-#' #                    CorModels = "Exponential.taildown",
+#' #                    space_method = list("use_ssn", "Exponential.taildown"),
+#' #                    time_method = list("ar", "date"),
 #' #                    iter = 3000,
 #' #                    warmup = 1500,
 #' #                    chains = 3)
 
 
+
+# list('use_ssn', 'Exponential.tailup')
+# list('no_ssn', 'Exponential.Euc', c('lon', 'lat'))
+
 ssnbayes <- function(formula = formula,
                      data = data,
                      path = path,
-                     TempModel = "ar",
-                     CorModels = "Exponential.tailup",
+                     time_method = time_method, # list("ar", "date")
+                     space_method = space_method, #list('use_ssn', 'Exponential.tailup'),
                      iter = 3000,
                      warmup = 1500,
                      chains = 3,
@@ -304,7 +313,62 @@ ssnbayes <- function(formula = formula,
                      net = 1,
                      addfunccol = addfunccol,
                      loglik = F,
-                     ssn_object = T){
+                     seed = seed
+                     ){
+
+  # checks
+  if(missing(time_method)){
+    stop("Need to define the method (ar or var) and the column associated with time")
+  }
+
+  if(length(time_method) == 1){
+  stop("Need to specify the column in the the data with the time variable")
+  }
+
+  time_points <- time_method[[2]]
+
+  #if('date' %in% names(data) == F) stop("There is no column date on the data. Please, set a column called date with the time")
+  if('locID' %in% names(data) == F) stop("There is no column locID on the data. Please, set a column called locID with the observation locations")
+
+  if(missing(seed)) seed <- sample(1:1E6,1,replace=T)
+
+  if(!missing(space_method)){
+	print('using SSN object')
+   if(space_method[[1]] == 'use_ssn'){
+	  ssn_object <- T
+
+
+	  if(length(space_method) > 1){
+		 if(space_method[[2]] %in% c("Exponential.tailup", "LinearSill.tailup" , "Spherical.tailup" ,
+		"Exponential.taildown" ,"LinearSill.taildown" ,"Spherical.taildown",
+		"Exponential.Euclid") == F) {stop("Need to specify one or more of the following covariance matrices: Exponential.tailup, LinearSill.tailup , Spherical.tailup ,
+		Exponential.taildown, LinearSill.taildown, Spherical.taildown or Exponential.Euc")}
+		CorModels <- space_method[[2]]
+		}
+	  if(length(space_method) == 1){
+		CorModels <- "Exponential.tailup"
+		print('using an Exponential.tailup model')
+	  }
+
+  }
+  if(space_method[[1]] == 'no_ssn'){
+  print('no SSN object defined')
+  ssn_object <- F
+    if(space_method[[2]] %in% c("Exponential.Euc") == F) {stop("Need to specify Exponential.Euc")}
+  # when using Euclidean distance, need to specify the columns with long and lat.
+  if(length(space_method) < 3){ stop("Please, specify the columns in the data frame with the latitude and longitude (c('lon', 'lat'))") }
+
+  data$lon <- data[,names(data) == space_method[[3]][1]]
+  data$lat <- data[,names(data) == space_method[[3]][2]]
+  CorModels <- space_method[[2]]
+  }
+
+
+  }
+
+  if(missing(space_method)) {space_method <- 'no_ssn'; ssn_object <- F; CorModels <- "Exponential.Euc" }# if missing use Euclidean distance
+
+
 
 
   # Cov
@@ -366,7 +430,6 @@ ssnbayes <- function(formula = formula,
     real<lower=0> sigma_nug;
 
     vector[N_y_mis] y_mis;//declaring the missing y
- //
   '
 
 
@@ -634,8 +697,8 @@ ssnbayes <- function(formula = formula,
     if(cor_ed %in% 1:3) param_ed,
     if(cor_re %in% 1:3) param_re,
 
-    if(TempModel == 'ar') param_phi_ar,
-    if(TempModel == 'var') param_phi_var,
+    if(time_method[[1]] == 'ar') param_phi_ar,
+    if(time_method[[1]] == 'var') param_phi_var,
 
     '}',
 
@@ -647,8 +710,8 @@ ssnbayes <- function(formula = formula,
     tparam_com2,
 
 
-    if(TempModel == 'ar') tparam_com_ar,
-    if(TempModel == 'var') tparam_com_var,
+    if(time_method[[1]] == 'ar') tparam_com_ar,
+    if(time_method[[1]] == 'var') tparam_com_var,
 
 
     #ifelse(cor_tu %in% 1:3, tparam_tu2, 'C_tu = rep_matrix(0, N, N);'),
@@ -713,21 +776,27 @@ ssnbayes <- function(formula = formula,
   design_matrix <- out_list$X # design matrix
 
   obs_data <- data
-  ndays <- length(unique(obs_data$date))
+  #ndays <- length(unique(obs_data$date))
+
+  ndays <- length(unique(obs_data[, names(obs_data) %in% time_points] ))
+
+
   N <- nrow(obs_data)/ndays #nobs
 
 
   nobs <- nrow(obs_data)/ndays #nobs
 
-  obs_data$date_num <- as.numeric(factor(obs_data$date))
+  #obs_data$date_num <- as.numeric(factor(obs_data$date))
+
+obs_data$date_num <- as.numeric(factor(obs_data[, names(obs_data) %in% time_points]	))
+
 
   resp_var_name <- gsub("[^[:alnum:]]", " ", formula[2])
   obs_data$y <- obs_data[,names(obs_data) %in% resp_var_name]
 
-  train <- nrow(obs_data[obs_data$date_num==1 & !is.na(obs_data$y),])
-  test <- nrow(obs_data[obs_data$date_num==1 & is.na(obs_data$y),])
-  #train <- points - round(points * 0.30)
-  #test <- round(points * 0.30)
+  #train <- nrow(obs_data[obs_data$date_num==1 & !is.na(obs_data$y),])
+  #test <- nrow(obs_data[obs_data$date_num==1 & is.na(obs_data$y),])
+
 
 
   # array structure
@@ -754,12 +823,17 @@ ssnbayes <- function(formula = formula,
   i_y_mis <- obs_data[is.na(obs_data$y),]$pid
   #  i_y_mis <- matrix(i_y_mis, nrow = test, ncol = ndays, byrow = F)
 
+
+
   if(ssn_object == T){ # the ssn object exist?
     mat_all <- dist_wei_mat(path = path, net = net, addfunccol = addfunccol)
   }
 
   if(ssn_object == F){ # the ssn object does not exist- purely spatial
-    di <- dist(data[data$date == 1,c('lon', 'lat')],
+
+	first_date <- unique(obs_data[, names(obs_data) %in% time_points])[1]
+
+	di <- dist(obs_data[obs_data$date == first_date, c('lon', 'lat')], #data$date == 1
                method = "euclidean",
                diag = FALSE,
                upper = FALSE) %>% as.matrix()
@@ -796,10 +870,10 @@ ssnbayes <- function(formula = formula,
 
   data_list$I = diag(1, nrow(data_list$W), nrow(data_list$W))  # diagonal matrix
 
-  phi_ini <- ifelse(TempModel == "ar", 0.5, rep(0.5,N))
+  # phi_ini <- ifelse(time_method == "ar", 0.5, rep(0.5,N))
 
 
-  ini <- function(){list(var_nug =  .1, phi = phi_ini #phi= rep(0.5,N)
+  ini <- function(){list(var_nug =  .1#, phi = phi_ini #phi= rep(0.5,N)
                          #y = rep( mean(obs_data$temp, na.rm = T),T*N)
   )}
 
@@ -813,7 +887,7 @@ ssnbayes <- function(formula = formula,
                      init = ini,
                      chains = chains,
                      verbose = F,
-                     #seed = seed,
+                     seed = seed,
                      refresh = refresh
   )
   attributes(fit)$formula <- formula
@@ -835,10 +909,11 @@ ssnbayes <- function(formula = formula,
 #' @param mat_all_preds A list with the distance/weights matrices
 #' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
 #' @param start (optional) The starting location id
-#' @param chunks_size (optional) the number of locID to make prediction from
+#' @param chunk_size (optional) the number of locID to make prediction from
 #' @param obs_data The observed data frame
 #' @param pred_data The predicted data frame
 #' @param net (optional) Network from the SSN object
+#' @param seed (optional) A seed for reproducibility
 #' @return A data frame
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
@@ -852,10 +927,14 @@ krig <- function(stanfit = stanfit,
                  mat_all_preds = mat_all_preds,
                  nsamples = 10,
                  start = 1,
-                 chunks_size = 50,
+                 chunk_size = 50,
                  obs_data = obs_data,
                  pred_data = pred_data,
-                 net = net){
+                 net = net,
+				 seed = seed){
+
+  if(missing(seed)) seed <- sample(1:1E6,1,replace=T)
+  set.seed(seed)
 
   formula <- as.formula(attributes(stanfit)$formula)
 
@@ -889,7 +968,7 @@ krig <- function(stanfit = stanfit,
 
   # obs data frame. no missing in temp
 
-  locID_pred_1 <- locID_pred0[start:(start + chunks_size - 1)] # NB
+  locID_pred_1 <- locID_pred0[start:(start + chunk_size - 1)] # NB
 
   pred_data_1 <- pred_data[pred_data$locID0 %in% locID_pred_1,]
 
@@ -969,7 +1048,7 @@ krig <- function(stanfit = stanfit,
     C_td <- C_td + var_nug[k] * diag(total_numb_points)
 
     Coo_td <- C_td[1:n_obs,1:n_obs]
-    Cop_td <- C_td[1:n_obs,(n_obs+1):(n_obs+chunks_size)]
+    Cop_td <- C_td[1:n_obs,(n_obs+1):(n_obs+chunk_size)]
 
 
     # Separable covariance space-time matrix
@@ -1009,9 +1088,9 @@ krig <- function(stanfit = stanfit,
 #' @param net (optional) Network from the SSN object
 #' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
 #' @param addfunccol The variable used for spatial weights
-#' @param chunks_size (optional) the number of locID to make prediction from
+#' @param chunk_size (optional) the number of locID to make prediction from
 #' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
-
+#' @param seed (optional) A seed for reproducibility
 
 #' @return A data frame
 #' @export
@@ -1042,8 +1121,13 @@ pred_ssnbayes <- function(
   locID_pred = locID_pred, # location ID of the points to predict
   #ssn_object = T # if it will use an SSN object
   #CorModels = "Exponential.tailup",
-  chunks_size = chunks_size
+  chunk_size = chunk_size,
+  seed = seed
 ){
+
+  if(missing(seed)) seed <- sample(1:1E6,1,replace=T)
+  set.seed(seed)
+
 
   mat_all_preds <- dist_wei_mat_preds(path = path,
                                       net = net,
@@ -1068,26 +1152,26 @@ pred_ssnbayes <- function(
   obs_points <- length(unique(obs_data$locID))
   pred_points <- length(unique(pred_data$locID))
 
-  #chunks_size <- length(unique(obs_data$locID))
+  #chunk_size <- length(unique(obs_data$locID))
 
-  if(missing(chunks_size)) chunks_size <- pred_points
+  if(missing(chunk_size)) chunk_size <- pred_points
 
   out_all <- NULL
 
-  is <- ceiling(pred_points/chunks_size)
+  is <- ceiling(pred_points/chunk_size)
 
   for(j in 1:is){ #NB
     print('krig_funct')
     print(j)
-    start <- ((j - 1) * chunks_size + 1)
+    start <- ((j - 1) * chunk_size + 1)
 
-    chunks_size <- ifelse(j != is, chunks_size, pred_points - (j - 1) * chunks_size)
+    chunk_size <- ifelse(j != is, chunk_size, pred_points - (j - 1) * chunk_size)
 
     out <- krig(stanfit = stanfit,
                 mat_all_preds = mat_all_preds,
                 nsamples = nsamples,
                 start = start,
-                chunks_size = chunks_size,
+                chunk_size = chunk_size,
                 obs_data = obs_data,
                 pred_data = pred_data,
                 net = 2)

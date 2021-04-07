@@ -15,10 +15,11 @@ krig(
   mat_all_preds = mat_all_preds,
   nsamples = 10,
   start = 1,
-  chunks_size = 50,
+  chunk_size = 50,
   obs_data = obs_data,
   pred_data = pred_data,
-  net = net
+  net = net,
+  seed = seed
 )
 }
 \arguments{
@@ -30,13 +31,15 @@ krig(
 
 \item{start}{(optional) The starting location id}
 
-\item{chunks_size}{(optional) the number of locID to make prediction from}
+\item{chunk_size}{(optional) the number of locID to make prediction from}
 
 \item{obs_data}{The observed data frame}
 
 \item{pred_data}{The predicted data frame}
 
 \item{net}{(optional) Network from the SSN object}
+
+\item{seed}{(optional) A seed for reproducibility}
 }
 \value{
 A data frame

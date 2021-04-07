@@ -19,7 +19,8 @@ pred_ssnbayes(
   nsamples = 100,
   addfunccol = "afvArea",
   locID_pred = locID_pred,
-  chunks_size = chunks_size
+  chunk_size = chunk_size,
+  seed = seed
 )
 }
 \arguments{
@@ -39,7 +40,9 @@ pred_ssnbayes(
 
 \item{locID_pred}{(optional) the location id for the predictions. Used when the number of pred locations is large.}
 
-\item{chunks_size}{(optional) the number of locID to make prediction from}
+\item{chunk_size}{(optional) the number of locID to make prediction from}
+
+\item{seed}{(optional) A seed for reproducibility}
 }
 \value{
 A data frame
