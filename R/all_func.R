@@ -159,7 +159,7 @@ dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
 
   H <- D + base::t(D)
 
-  print(dim(D))
+  #print(dim(D))
 
   pred_data <- dplyr::filter(pred_data, pid %in% colnames(H))
   # NB replace here by the variable used for spatial weights
@@ -270,7 +270,7 @@ mylm <- function(formula, data) {
 #' @param path Path with the name of the SSN object
 #' @param formula A formula as in lm()
 #' @param data A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.
-#' @param space_method A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a a list with the lon and lat for Euclidean distance models.
+#' @param space_method A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a list with the lon and lat for Euclidean distance models.
 #' @param time_method A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.
 #' @param iter Number of iterations
 #' @param warmup Warm up samples
@@ -281,6 +281,7 @@ mylm <- function(formula, data) {
 #' @param loglik Logic parameter denoting if the loglik will be computed by the model.
 #' @param seed (optional) A seed for reproducibility
 #' @return A list with the model fit
+#' @details Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
 #' @importFrom plyr .
@@ -296,10 +297,10 @@ mylm <- function(formula, data) {
 #' #                    warmup = 1500,
 #' #                    chains = 3)
 
-
-
-# list('use_ssn', 'Exponential.tailup')
-# list('no_ssn', 'Exponential.Euc', c('lon', 'lat'))
+#' #space_method options examples
+#' #list('use_ssn', 'Exponential.tailup')
+#' #' #list('use_ssn', 'Exponential.tailup')
+#' #list('no_ssn', 'Exponential.Euclid', c('lon', 'lat'))
 
 ssnbayes <- function(formula = formula,
                      data = data,
@@ -314,7 +315,7 @@ ssnbayes <- function(formula = formula,
                      addfunccol = addfunccol,
                      loglik = F,
                      seed = seed
-                     ){
+){
 
   # checks
   if(missing(time_method)){
@@ -322,7 +323,7 @@ ssnbayes <- function(formula = formula,
   }
 
   if(length(time_method) == 1){
-  stop("Need to specify the column in the the data with the time variable")
+    stop("Need to specify the column in the the data with the time variable")
   }
 
   time_points <- time_method[[2]]
@@ -333,40 +334,40 @@ ssnbayes <- function(formula = formula,
   if(missing(seed)) seed <- sample(1:1E6,1,replace=T)
 
   if(!missing(space_method)){
-	print('using SSN object')
-   if(space_method[[1]] == 'use_ssn'){
-	  ssn_object <- T
+    print('using SSN object')
+    if(space_method[[1]] == 'use_ssn'){
+      ssn_object <- T
 
 
-	  if(length(space_method) > 1){
-		 if(space_method[[2]] %in% c("Exponential.tailup", "LinearSill.tailup" , "Spherical.tailup" ,
-		"Exponential.taildown" ,"LinearSill.taildown" ,"Spherical.taildown",
-		"Exponential.Euclid") == F) {stop("Need to specify one or more of the following covariance matrices: Exponential.tailup, LinearSill.tailup , Spherical.tailup ,
-		Exponential.taildown, LinearSill.taildown, Spherical.taildown or Exponential.Euc")}
-		CorModels <- space_method[[2]]
-		}
-	  if(length(space_method) == 1){
-		CorModels <- "Exponential.tailup"
-		print('using an Exponential.tailup model')
-	  }
+      if(length(space_method) > 1){
+        if(space_method[[2]] %in% c("Exponential.tailup", "LinearSill.tailup" , "Spherical.tailup" ,
+                                    "Exponential.taildown" ,"LinearSill.taildown" ,"Spherical.taildown",
+                                    "Exponential.Euclid") == F) {stop("Need to specify one or more of the following covariance matrices: Exponential.tailup, LinearSill.tailup , Spherical.tailup ,
+		Exponential.taildown, LinearSill.taildown, Spherical.taildown or Exponential.Euclid")}
+        CorModels <- space_method[[2]]
+      }
+      if(length(space_method) == 1){
+        CorModels <- "Exponential.tailup"
+        print('using an Exponential.tailup model')
+      }
+
+    }
+    if(space_method[[1]] == 'no_ssn'){
+      print('no SSN object defined')
+      ssn_object <- F
+      if(space_method[[2]] %in% c("Exponential.Euclid") == F) {stop("Need to specify Exponential.Euclid")}
+      # when using Euclidean distance, need to specify the columns with long and lat.
+      if(length(space_method) < 3){ stop("Please, specify the columns in the data frame with the latitude and longitude (c('lon', 'lat'))") }
+
+      data$lon <- data[,names(data) == space_method[[3]][1]]
+      data$lat <- data[,names(data) == space_method[[3]][2]]
+      CorModels <- space_method[[2]]
+    }
+
 
   }
-  if(space_method[[1]] == 'no_ssn'){
-  print('no SSN object defined')
-  ssn_object <- F
-    if(space_method[[2]] %in% c("Exponential.Euc") == F) {stop("Need to specify Exponential.Euc")}
-  # when using Euclidean distance, need to specify the columns with long and lat.
-  if(length(space_method) < 3){ stop("Please, specify the columns in the data frame with the latitude and longitude (c('lon', 'lat'))") }
 
-  data$lon <- data[,names(data) == space_method[[3]][1]]
-  data$lat <- data[,names(data) == space_method[[3]][2]]
-  CorModels <- space_method[[2]]
-  }
-
-
-  }
-
-  if(missing(space_method)) {space_method <- 'no_ssn'; ssn_object <- F; CorModels <- "Exponential.Euc" }# if missing use Euclidean distance
+  if(missing(space_method)) {space_method <- 'no_ssn'; ssn_object <- F; CorModels <- "Exponential.Euclid" }# if missing use Euclidean distance
 
 
 
@@ -788,7 +789,7 @@ ssnbayes <- function(formula = formula,
 
   #obs_data$date_num <- as.numeric(factor(obs_data$date))
 
-obs_data$date_num <- as.numeric(factor(obs_data[, names(obs_data) %in% time_points]	))
+  obs_data$date_num <- as.numeric(factor(obs_data[, names(obs_data) %in% time_points]	))
 
 
   resp_var_name <- gsub("[^[:alnum:]]", " ", formula[2])
@@ -831,9 +832,9 @@ obs_data$date_num <- as.numeric(factor(obs_data[, names(obs_data) %in% time_poin
 
   if(ssn_object == F){ # the ssn object does not exist- purely spatial
 
-	first_date <- unique(obs_data[, names(obs_data) %in% time_points])[1]
+    first_date <- unique(obs_data[, names(obs_data) %in% time_points])[1]
 
-	di <- dist(obs_data[obs_data$date == first_date, c('lon', 'lat')], #data$date == 1
+    di <- dist(obs_data[obs_data$date == first_date, c('lon', 'lat')], #data$date == 1
                method = "euclidean",
                diag = FALSE,
                upper = FALSE) %>% as.matrix()
@@ -892,8 +893,72 @@ obs_data$date_num <- as.numeric(factor(obs_data[, names(obs_data) %in% time_poin
   )
   attributes(fit)$formula <- formula
 
+  class(fit) <- 'ssnbayes'
+
   fit
 }
+
+
+
+
+
+#' Performs spatial prediction in R using an ssnbayes object from a fitted model.
+#' It will take an observed and a prediction data frame.
+#' It requires the same number of observation/locations per day.
+#' It requires location id (locID) and points id (pid).
+#' The locID are unique for each site.
+#' The pid is unique for each observation.
+#' Missing values are allowed in the response but not in the covariates.
+#'
+#' @param path Path with the name of the SSN object
+#' @param obs_data The observed data frame
+#' @param stanfit A stanfit object returned from ssnbayes
+#' @param pred_data The predicted data frame
+#' @param net (optional) Network from the SSN object
+#' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
+#' @param addfunccol The variable used for spatial weights
+#' @param chunk_size (optional) the number of locID to make prediction from
+#' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
+#' @param seed (optional) A seed for reproducibility
+
+#' @return A data frame
+#' @export
+#' @importFrom dplyr mutate %>% distinct left_join case_when
+#' @importFrom plyr .
+#' @importFrom SSN importSSN getSSNdata.frame
+#' @importFrom rstan stan
+#' @importFrom stats dist
+#' @examples
+#' #pred <- predict(stanfit = fit_ar,
+#' #path = path,
+#' #obs_data = clear,
+#' #pred_data = preds,
+#' #net = 2,
+#' #nsamples = 100, # number of samples to use from the posterior in the stanfit object
+#' #addfunccol = 'afvArea') # variable used for spatial weights
+
+
+predict.ssnbayes <- function(stanfit = stanfit,
+                             path = path,
+                             obs_data = obs_data,
+                             pred_data = pred_data,
+                             net = net,
+                             nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
+                             addfunccol = addfunccol, # variable used for spatial weights
+                             locID_pred = locID_pred,
+                             chunk_size = chunk_size) {
+  out <- pred_ssnbayes(stanfit = stanfit,
+                       path = path,
+                       obs_data = obs_data,
+                       pred_data = pred_data,
+                       net = net,
+                       nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
+                       addfunccol = addfunccol, # variable used for spatial weights
+                       locID_pred = locID_pred,
+                       chunk_size = chunk_size)
+  out
+}
+
 
 
 
@@ -931,7 +996,7 @@ krig <- function(stanfit = stanfit,
                  obs_data = obs_data,
                  pred_data = pred_data,
                  net = net,
-				 seed = seed){
+                 seed = seed){
 
   if(missing(seed)) seed <- sample(1:1E6,1,replace=T)
   set.seed(seed)
@@ -1125,6 +1190,8 @@ pred_ssnbayes <- function(
   seed = seed
 ){
 
+  class(stanfit) <- 'stanfit'
+
   if(missing(seed)) seed <- sample(1:1E6,1,replace=T)
   set.seed(seed)
 
@@ -1160,9 +1227,9 @@ pred_ssnbayes <- function(
 
   is <- ceiling(pred_points/chunk_size)
 
-  for(j in 1:is){ #NB
-    print('krig_funct')
-    print(j)
+  for(j in 1:is){
+    #print('krig_funct')
+    #print(j)
     start <- ((j - 1) * chunk_size + 1)
 
     chunk_size <- ifelse(j != is, chunk_size, pred_points - (j - 1) * chunk_size)
@@ -1182,4 +1249,6 @@ pred_ssnbayes <- function(
   data.frame(out_all)
 
 }
+
+
 
