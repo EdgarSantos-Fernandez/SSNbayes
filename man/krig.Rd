@@ -2,16 +2,10 @@
 % Please edit documentation in R/all_func.R
 \name{krig}
 \alias{krig}
-\title{Performs spatial prediction in R using a stanfit object from ssnbayes()
-It will take an observed and a prediction data frame.
-It requires the same number of observation/locations per day.
-It requires location id (locID) and points id (pid).
-The locID are unique for each site.
-The pid is unique for each observation.
-Missing values are allowed in the response but not in the covariates.}
+\title{Internal function used to perform spatial prediction in R using a stanfit object from ssnbayes()}
 \usage{
 krig(
-  stanfit = stanfit,
+  object = object,
   mat_all_preds = mat_all_preds,
   nsamples = 10,
   start = 1,
@@ -23,7 +17,7 @@ krig(
 )
 }
 \arguments{
-\item{stanfit}{A stanfit object returned from ssnbayes}
+\item{object}{A stanfit object returned from ssnbayes}
 
 \item{mat_all_preds}{A list with the distance/weights matrices}
 
@@ -45,11 +39,14 @@ krig(
 A data frame
 }
 \description{
-Performs spatial prediction in R using a stanfit object from ssnbayes()
+Use predict.ssnbayes() instead.
 It will take an observed and a prediction data frame.
 It requires the same number of observation/locations per day.
 It requires location id (locID) and points id (pid).
 The locID are unique for each site.
 The pid is unique for each observation.
 Missing values are allowed in the response but not in the covariates.
+}
+\author{
+Edgar Santos-Fernandez
 }

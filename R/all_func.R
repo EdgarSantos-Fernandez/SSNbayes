@@ -5,22 +5,25 @@
 #' Collapses a SSN object into a data frame
 #'
 #' @param t Path to a SSN object
+#' @param par A spatial parameter
 #' @return A data frame
 #' @importFrom dplyr arrange
 #' @importFrom plyr .
 #' @export
 #' @examples
-#' #t.df <- collapse(t)
+#' \dontrun{t.df <- collapse(t)}
 #'
 
-collapse <- function(t){
+collapse <- function(t, par = 'afvArea'){
   slot <- NULL
   df_all <- NULL
   for (i in 1:length(t@lines)){
     df <- data.frame(t@lines[[i]]@Lines[[1]]@coords)
     df$slot <- t@lines[[i]]@ID
-    df$computed_afv <-  t@data$afvArea[i] #afvArea
-    df_all<- rbind(df, df_all)
+
+    df$computed_afv <- t@data[i, par]  # t@data$afvArea[i] #afvArea
+
+	df_all<- rbind(df, df_all)
 
     df_all$slot <- as.numeric(as.character(df_all$slot))
   }
@@ -45,7 +48,7 @@ collapse <- function(t){
 #' @importFrom stats dist
 #' @export
 #' @examples
-#' #mat_all <- dist_wei_mat(path)
+#' \dontrun{mat_all <- dist_wei_mat(path)}
 #'
 
 
@@ -123,7 +126,7 @@ dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
 #' @export
 #' @description The output matrices are symmetric except the hydrologic distance matrix D.
 #' @examples
-#' #mat_all <- dist_wei_mat_preds(path, net = 1, addfunccol = 'addfunccol')
+#' \dontrun{mat_all <- dist_wei_mat_preds(path, net = 1, addfunccol = 'addfunccol')}
 #'
 #'
 
@@ -143,12 +146,12 @@ dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
   obs_data$locID_backup <- obs_data$locID
   pred_data$locID_backup <- pred_data$locID
 
-  if(file.exists(paste0(path, '/distance/preds')) == F) stop("no distance matrix available between predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = T)")
+  if(file.exists(paste0(path, '/distance/preds')) == F) stop("no distance matrix available between predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = TRUE)")
 
   # creating distance matrices
   doo <- readRDS(paste0(path, '/distance/obs/dist.net', net, '.RData'))
 
-  if(file.exists(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) == F) stop("no distance matrix available between observations and predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = T)")
+  if(file.exists(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) == F) stop("no distance matrix available between observations and predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = TRUE)")
   dop <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) # distance between observations
   dpo <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.b.RData'))
   dpp <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.RData'))
@@ -223,7 +226,6 @@ dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
   list(e = e, D = D, H = H, w.matrix = w.matrix, flow.con.mat = flow.con.mat)
 }
 
-#mat_all_preds <- dist_wei_mat_preds(path = path,  net = 2, addfunccol='afvArea')
 
 
 
@@ -238,8 +240,8 @@ dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
 #' @export
 #' @author Jay ver Hoef
 #' @examples
-#' #options(na.action='na.pass')
-#' #out_list = mylm(formula = y ~ X1 + X2 + X3, data = data)
+#' \dontrun{options(na.action='na.pass')
+#' out_list = mylm(formula = y ~ X1 + X2 + X3, data = data)}
 #'
 
 mylm <- function(formula, data) {
@@ -261,6 +263,7 @@ mylm <- function(formula, data) {
 
 
 #' Fits a mixed regression model using Stan
+#'
 #' It requires the same number of observation/locations per day.
 #' It requires location id (locID) and points id (pid).
 #' The locID are unique for each site.
@@ -288,19 +291,29 @@ mylm <- function(formula, data) {
 #' @importFrom SSN importSSN getSSNdata.frame
 #' @importFrom rstan stan
 #' @importFrom stats dist
+#' @author Edgar Santos-Fernandez
 #' @examples
-#' #fit_td <- ssnbayes(formula = 'y ~ X1 + X2 + X3',
-#' #                    data = data, ssn = ssn,
-#' #                    space_method = list("use_ssn", "Exponential.taildown"),
-#' #                    time_method = list("ar", "date"),
-#' #                    iter = 3000,
-#' #                    warmup = 1500,
-#' #                    chains = 3)
+#'
+#'#library('SSNdata')
+#'#options(mc.cores = parallel::detectCores())
+#'# Import SpatialStreamNetwork object
+#'#path <- system.file("extdata/clearwater.ssn", package = "SSNdata")
+#'#n <- importSSN(path, predpts = "preds", o.write = TRUE)
+#'## Imports a data.frame containing observations and covariates
+#'#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNdata"))
+#'#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + cumdrainag + air_temp + sin + cos,
+#'#                   data = clear,
+#'#                   path = path,
+#'#                   time_method = list("ar", "date"),
+#'#                   space_method = list('use_ssn', c("Exponential.taildown")),
+#'#                   iter = 2000,
+#'#                   warmup = 1000,
+#'#                   chains = 3,
+#'#                   net = 2, # second network on the ssn object
+#'#                   addfunccol='afvArea')
 
 #' #space_method options examples
-#' #list('use_ssn', 'Exponential.tailup')
-#' #' #list('use_ssn', 'Exponential.tailup')
-#' #list('no_ssn', 'Exponential.Euclid', c('lon', 'lat'))
+#' #use list('no_ssn', 'Exponential.Euclid', c('lon', 'lat')) if no ssn object is available
 
 ssnbayes <- function(formula = formula,
                      data = data,
@@ -331,12 +344,12 @@ ssnbayes <- function(formula = formula,
   #if('date' %in% names(data) == F) stop("There is no column date on the data. Please, set a column called date with the time")
   if('locID' %in% names(data) == F) stop("There is no column locID on the data. Please, set a column called locID with the observation locations")
 
-  if(missing(seed)) seed <- sample(1:1E6,1,replace=T)
+  if(missing(seed)) seed <- sample(1:1E6,1,replace=TRUE)
 
   if(!missing(space_method)){
     print('using SSN object')
     if(space_method[[1]] == 'use_ssn'){
-      ssn_object <- T
+      ssn_object <- TRUE
 
 
       if(length(space_method) > 1){
@@ -388,7 +401,7 @@ ssnbayes <- function(formula = formula,
 
   cor_ed <- case_when(CorModels == "Exponential.Euclid" ~ 1,
                       TRUE ~ 5)
-  #CorModels == "Spherical.Euclid" ~ 2,
+  #CorModels == "Spherical.Euclid" ~ 2, #NB: to be implemented
   #CorModels == "Gaussian.Euclid" ~ 3)
   cor_ed <- sort(cor_ed)[1]
 
@@ -509,8 +522,6 @@ ssnbayes <- function(formula = formula,
     y[i_y_obs] = y_obs;
     y[i_y_mis] = y_mis;
     for (t in 1:T){
-      //y[ i_y_obs[,t] ] = y_obs[((t - 1) * N_y_obs + 1):(t * N_y_obs)];
-      //y[ i_y_mis[,t] ] = y_mis[((t - 1) * N_y_mis + 1):(t * N_y_mis)];
       Y[t] = y[((t - 1) * N + 1):(t * N)];
     }
 
@@ -653,12 +664,12 @@ ssnbayes <- function(formula = formula,
     }
 
     sigma_nug ~ uniform(0,50); // cauchy(0,1) prior nugget effect
-    //phi ~ uniform(-1, 1); //
-    phi ~ normal(0.5,0.3); //NB informative
+    phi ~ uniform(-1, 1); // or can use phi ~ normal(0.5,0.3); //NB informative
+
 '
 
   model_tu <- '
-    sigma_tu ~ uniform(0,100);  // cauchy(0,2) prior sd  tail-up model
+    sigma_tu ~ uniform(0,100);  // or cauchy(0,2) prior sd  tail-up model
     alpha_tu ~ uniform(0, alpha_max);
 '
 
@@ -676,11 +687,9 @@ ssnbayes <- function(formula = formula,
     sigma_RE1 ~ uniform(0,5);
 '
 
-
   gen_quant <- '
   generated quantities {
    vector[T] log_lik;
-   // vector[N] log_lik[T];
      for (t in 1:T){
        log_lik[t] = multi_normal_cholesky_lpdf(Y[t]|mu[t],
         cholesky_decompose(C_tu + C_td + C_re + C_ed + var_nug * I + 1e-6) );
@@ -715,7 +724,7 @@ ssnbayes <- function(formula = formula,
     if(time_method[[1]] == 'var') tparam_com_var,
 
 
-    #ifelse(cor_tu %in% 1:3, tparam_tu2, 'C_tu = rep_matrix(0, N, N);'),
+
     case_when(cor_tu == 1 ~ tparam_tu2_exp,
               cor_tu == 2 ~ tparam_tu2_lin,
               cor_tu == 3 ~ tparam_tu2_sph,
@@ -741,7 +750,7 @@ ssnbayes <- function(formula = formula,
     if(cor_re %in% 1:3) model_re,
     '}',
 
-    if(loglik == T) gen_quant
+    if(loglik == TRUE) gen_quant
   )
 
   `%notin%` <- Negate(`%in%`)
@@ -759,7 +768,7 @@ ssnbayes <- function(formula = formula,
     case_when(cor_re %in% 1:3 ~ c('var_re', 'alpha_re'),
               cor_re %notin% 1:3 ~ ""),
 
-    if(loglik == T) 'log_lik',
+    if(loglik == TRUE) 'log_lik',
 
     'var_nug',
     'beta',
@@ -770,6 +779,9 @@ ssnbayes <- function(formula = formula,
 
 
   # data part
+  old <- options()        # old options
+  on.exit(options(old)) 	# reset once exit the function
+
   options(na.action='na.pass') # to preserve the NAs
   out_list <- mylm(formula = formula, data = data) # produces the design matrix
 
@@ -777,7 +789,6 @@ ssnbayes <- function(formula = formula,
   design_matrix <- out_list$X # design matrix
 
   obs_data <- data
-  #ndays <- length(unique(obs_data$date))
 
   ndays <- length(unique(obs_data[, names(obs_data) %in% time_points] ))
 
@@ -787,46 +798,27 @@ ssnbayes <- function(formula = formula,
 
   nobs <- nrow(obs_data)/ndays #nobs
 
-  #obs_data$date_num <- as.numeric(factor(obs_data$date))
-
   obs_data$date_num <- as.numeric(factor(obs_data[, names(obs_data) %in% time_points]	))
-
 
   resp_var_name <- gsub("[^[:alnum:]]", " ", formula[2])
   obs_data$y <- obs_data[,names(obs_data) %in% resp_var_name]
 
-  #train <- nrow(obs_data[obs_data$date_num==1 & !is.na(obs_data$y),])
-  #test <- nrow(obs_data[obs_data$date_num==1 & is.na(obs_data$y),])
-
-
 
   # array structure
   X <- design_matrix #cbind(1,obs_data[, c("X1", "X2", "X3")]) # design matrix
-  #Xarray <- abind(matrix(X[,1],nrow = ndays, ncol = nobs, byrow = T),
-  #                matrix(X[,2],nrow = ndays, ncol = nobs, byrow = T),
-  #                matrix(X[,3],nrow = ndays, ncol = nobs, byrow = T),
-  #                matrix(X[,4],nrow = ndays, ncol = nobs, byrow = T), along = 3)
 
-  # NB: this array order is Stan specific
+    # NB: this array order is Stan specific
   Xarray <- aperm(array( c(X), dim=c(N, ndays, ncol(X)) ),c(2, 1, 3))
 
-
-  y_obs <- response[!is.na(response)]#obs_data[!is.na(obs_data$y),]$y
-  #Yarray <- array(matrix(ys, nrow = ndays, ncol = train, byrow = T),
-  #                dim = c(ndays, train))
+  y_obs <- response[!is.na(response)]
 
   # index for observed values
   i_y_obs <- obs_data[!is.na(obs_data$y),]$pid
-  # i_y_obs <- matrix(i_y_obs, nrow = train , ncol = ndays, byrow = F)
-
 
   # index for missing values
   i_y_mis <- obs_data[is.na(obs_data$y),]$pid
-  #  i_y_mis <- matrix(i_y_mis, nrow = test, ncol = ndays, byrow = F)
 
-
-
-  if(ssn_object == T){ # the ssn object exist?
+  if(ssn_object == TRUE){ # the ssn object exist?
     mat_all <- dist_wei_mat(path = path, net = net, addfunccol = addfunccol)
   }
 
@@ -871,13 +863,7 @@ ssnbayes <- function(formula = formula,
 
   data_list$I = diag(1, nrow(data_list$W), nrow(data_list$W))  # diagonal matrix
 
-  # phi_ini <- ifelse(time_method == "ar", 0.5, rep(0.5,N))
-
-
-  ini <- function(){list(var_nug =  .1#, phi = phi_ini #phi= rep(0.5,N)
-                         #y = rep( mean(obs_data$temp, na.rm = T),T*N)
-  )}
-
+  ini <- function(){list(var_nug =  .1)}
 
   fit <- rstan::stan(model_code = ssn_ar,
                      model_name = "ssn_ar",
@@ -903,6 +889,7 @@ ssnbayes <- function(formula = formula,
 
 
 #' Performs spatial prediction in R using an ssnbayes object from a fitted model.
+#'
 #' It will take an observed and a prediction data frame.
 #' It requires the same number of observation/locations per day.
 #' It requires location id (locID) and points id (pid).
@@ -910,9 +897,10 @@ ssnbayes <- function(formula = formula,
 #' The pid is unique for each observation.
 #' Missing values are allowed in the response but not in the covariates.
 #'
+#' @param object A stanfit object returned from ssnbayes
+#' @param ... Other parameters
 #' @param path Path with the name of the SSN object
 #' @param obs_data The observed data frame
-#' @param stanfit A stanfit object returned from ssnbayes
 #' @param pred_data The predicted data frame
 #' @param net (optional) Network from the SSN object
 #' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
@@ -920,7 +908,6 @@ ssnbayes <- function(formula = formula,
 #' @param chunk_size (optional) the number of locID to make prediction from
 #' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
 #' @param seed (optional) A seed for reproducibility
-
 #' @return A data frame
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
@@ -928,17 +915,22 @@ ssnbayes <- function(formula = formula,
 #' @importFrom SSN importSSN getSSNdata.frame
 #' @importFrom rstan stan
 #' @importFrom stats dist
+#' @author Edgar Santos-Fernandez
 #' @examples
-#' #pred <- predict(stanfit = fit_ar,
-#' #path = path,
-#' #obs_data = clear,
-#' #pred_data = preds,
-#' #net = 2,
-#' #nsamples = 100, # number of samples to use from the posterior in the stanfit object
-#' #addfunccol = 'afvArea') # variable used for spatial weights
+#'#clear_preds <- readRDS(system.file("extdata/clear_preds.RDS", package = "SSNdata"))
+#'#clear_preds$y <- NA
+#'#pred <- predict(object = fit_ar,
+#'#                 path = path,
+#'#                 obs_data = clear,
+#'#                 pred_data = clear_preds,
+#'#                 net = 2,
+#'#                 nsamples = 100, # numb of samples from the posterior
+#'#                 addfunccol = 'afvArea', # var for spatial weights
+#'#                 locID_pred = locID_pred,
+#'#                 chunk_size = 60)
 
-
-predict.ssnbayes <- function(stanfit = stanfit,
+predict.ssnbayes <- function(object = object,
+                             ...,
                              path = path,
                              obs_data = obs_data,
                              pred_data = pred_data,
@@ -946,8 +938,9 @@ predict.ssnbayes <- function(stanfit = stanfit,
                              nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
                              addfunccol = addfunccol, # variable used for spatial weights
                              locID_pred = locID_pred,
-                             chunk_size = chunk_size) {
-  out <- pred_ssnbayes(stanfit = stanfit,
+                             chunk_size = chunk_size,
+                             seed = seed) {
+  out <- pred_ssnbayes(object = object,
                        path = path,
                        obs_data = obs_data,
                        pred_data = pred_data,
@@ -955,14 +948,17 @@ predict.ssnbayes <- function(stanfit = stanfit,
                        nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
                        addfunccol = addfunccol, # variable used for spatial weights
                        locID_pred = locID_pred,
-                       chunk_size = chunk_size)
+                       chunk_size = chunk_size,
+                       seed = seed)
   out
 }
 
 
 
 
-#' Performs spatial prediction in R using a stanfit object from ssnbayes()
+#' Internal function used to perform spatial prediction in R using a stanfit object from ssnbayes()
+#'
+#' Use predict.ssnbayes() instead.
 #' It will take an observed and a prediction data frame.
 #' It requires the same number of observation/locations per day.
 #' It requires location id (locID) and points id (pid).
@@ -970,7 +966,7 @@ predict.ssnbayes <- function(stanfit = stanfit,
 #' The pid is unique for each observation.
 #' Missing values are allowed in the response but not in the covariates.
 #'
-#' @param stanfit A stanfit object returned from ssnbayes
+#' @param object A stanfit object returned from ssnbayes
 #' @param mat_all_preds A list with the distance/weights matrices
 #' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
 #' @param start (optional) The starting location id
@@ -987,8 +983,9 @@ predict.ssnbayes <- function(stanfit = stanfit,
 #' @importFrom rstan stan
 #' @importFrom stats dist
 #' @importFrom stats as.formula
+#' @author Edgar Santos-Fernandez
 
-krig <- function(stanfit = stanfit,
+krig <- function(object = object,
                  mat_all_preds = mat_all_preds,
                  nsamples = 10,
                  start = 1,
@@ -998,9 +995,10 @@ krig <- function(stanfit = stanfit,
                  net = net,
                  seed = seed){
 
-  if(missing(seed)) seed <- sample(1:1E6,1,replace=T)
+  if(missing(seed)) seed <- sample(1:1E6,1,replace=TRUE)
   set.seed(seed)
 
+  stanfit <- object
   formula <- as.formula(attributes(stanfit)$formula)
 
   phi <- rstan::extract(stanfit, pars = 'phi')$phi
@@ -1037,11 +1035,7 @@ krig <- function(stanfit = stanfit,
 
   pred_data_1 <- pred_data[pred_data$locID0 %in% locID_pred_1,]
 
-  #dim(pred_data_1)
-
   N <- nrow(pred_data_1)
-
-  #   formula = temp ~ SLOPE + elev + CUMDRAINAG + air_temp + sin + cos
 
   options(na.action='na.pass') # to preserve the NAs
   out_list <- mylm(formula = formula, data = obs_data) # produces the design matrix
@@ -1092,11 +1086,8 @@ krig <- function(stanfit = stanfit,
   t <- length(unique(obs_data$date))
 
   Ypred <- matrix(NA, (nrow(pred_data_1)/t)*t, niter)
-  #print('kriging')
 
   for(k in 1:niter){
-
-    #print(k)
 
     C_t <- (phi[k] ^ abs(outer(1:t,1:t,"-")))/(1-( phi[k]^2) )
     inv_t <- solve(C_t)
@@ -1129,7 +1120,6 @@ krig <- function(stanfit = stanfit,
 
   }
 
-
   pred_data_1$ypred_all <- apply(Ypred, 1,mean)
 
   cbind(pred_data_1[,c('locID0','locID','date')], data.frame(Ypred))
@@ -1138,7 +1128,9 @@ krig <- function(stanfit = stanfit,
 
 
 
-#' Performs spatial prediction in R using a stanfit object from ssnbayes()
+#' Internal function used to perform spatial prediction in R using a stanfit object from ssnbayes()
+#'
+#' Use predict.ssnbayes() instead.
 #' It will take an observed and a prediction data frame.
 #' It requires the same number of observation/locations per day.
 #' It requires location id (locID) and points id (pid).
@@ -1146,9 +1138,9 @@ krig <- function(stanfit = stanfit,
 #' The pid is unique for each observation.
 #' Missing values are allowed in the response but not in the covariates.
 #'
+#' @param object A stanfit object returned from ssnbayes
 #' @param path Path with the name of the SSN object
 #' @param obs_data The observed data frame
-#' @param stanfit A stanfit object returned from ssnbayes
 #' @param pred_data The predicted data frame
 #' @param net (optional) Network from the SSN object
 #' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
@@ -1156,7 +1148,6 @@ krig <- function(stanfit = stanfit,
 #' @param chunk_size (optional) the number of locID to make prediction from
 #' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
 #' @param seed (optional) A seed for reproducibility
-
 #' @return A data frame
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
@@ -1164,6 +1155,7 @@ krig <- function(stanfit = stanfit,
 #' @importFrom SSN importSSN getSSNdata.frame
 #' @importFrom rstan stan
 #' @importFrom stats dist
+#' @author Edgar Santos-Fernandez
 #' @examples
 #' #pred <- pred_ssnbayes(path = path,
 #' #obs_data = clear,
@@ -1176,23 +1168,21 @@ krig <- function(stanfit = stanfit,
 
 
 pred_ssnbayes <- function(
+  object = object,
   path = path,
   obs_data = obs_data,
-  stanfit = stanfit,
   pred_data = pred_data,
   net = 1,
   nsamples = 100, # number of samples to use from the posterior in the stanfit object
   addfunccol = 'afvArea', # variable used for spatial weights
   locID_pred = locID_pred, # location ID of the points to predict
-  #ssn_object = T # if it will use an SSN object
-  #CorModels = "Exponential.tailup",
   chunk_size = chunk_size,
   seed = seed
 ){
+  stanfit <- object
+  class(object) <- 'stanfit'
 
-  class(stanfit) <- 'stanfit'
-
-  if(missing(seed)) seed <- sample(1:1E6,1,replace=T)
+  if(missing(seed)) seed <- sample(1:1E6,1,replace=TRUE)
   set.seed(seed)
 
 
@@ -1219,8 +1209,6 @@ pred_ssnbayes <- function(
   obs_points <- length(unique(obs_data$locID))
   pred_points <- length(unique(pred_data$locID))
 
-  #chunk_size <- length(unique(obs_data$locID))
-
   if(missing(chunk_size)) chunk_size <- pred_points
 
   out_all <- NULL
@@ -1228,13 +1216,11 @@ pred_ssnbayes <- function(
   is <- ceiling(pred_points/chunk_size)
 
   for(j in 1:is){
-    #print('krig_funct')
-    #print(j)
     start <- ((j - 1) * chunk_size + 1)
 
     chunk_size <- ifelse(j != is, chunk_size, pred_points - (j - 1) * chunk_size)
 
-    out <- krig(stanfit = stanfit,
+    out <- krig(object = object,
                 mat_all_preds = mat_all_preds,
                 nsamples = nsamples,
                 start = start,

@@ -2,12 +2,7 @@
 % Please edit documentation in R/all_func.R
 \name{ssnbayes}
 \alias{ssnbayes}
-\title{Fits a mixed regression model using Stan
-It requires the same number of observation/locations per day.
-It requires location id (locID) and points id (pid).
-The locID are unique for each site.
-The pid is unique for each observation.
-Missing values are allowed in the response but not in the covariates.}
+\title{Fits a mixed regression model using Stan}
 \usage{
 ssnbayes(
   formula = formula,
@@ -34,7 +29,7 @@ ssnbayes(
 
 \item{time_method}{A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.}
 
-\item{space_method}{A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a a list with the lon and lat for Euclidean distance models.}
+\item{space_method}{A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a list with the lon and lat for Euclidean distance models.}
 
 \item{iter}{Number of iterations}
 
@@ -56,19 +51,37 @@ ssnbayes(
 A list with the model fit
 }
 \description{
-Fits a mixed regression model using Stan
 It requires the same number of observation/locations per day.
 It requires location id (locID) and points id (pid).
 The locID are unique for each site.
 The pid is unique for each observation.
 Missing values are allowed in the response but not in the covariates.
 }
+\details{
+Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html
+}
 \examples{
-#fit_td <- ssnbayes(formula = 'y ~ X1 + X2 + X3',
-#                    data = data, ssn = ssn,
-#                    space_method = list("use_ssn", "Exponential.taildown"),
-#                    time_method = list("ar", "date"),
-#                    iter = 3000,
-#                    warmup = 1500,
-#                    chains = 3)
+
+#library('SSNdata')
+#options(mc.cores = parallel::detectCores())
+# Import SpatialStreamNetwork object
+#path <- system.file("extdata/clearwater.ssn", package = "SSNdata")
+#n <- importSSN(path, predpts = "preds", o.write = TRUE)
+## Imports a data.frame containing observations and covariates
+#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNdata"))
+#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + cumdrainag + air_temp + sin + cos,
+#                   data = clear,
+#                   path = path,
+#                   time_method = list("ar", "date"),
+#                   space_method = list('use_ssn', c("Exponential.taildown")),
+#                   iter = 2000,
+#                   warmup = 1000,
+#                   chains = 3,
+#                   net = 2, # second network on the ssn object
+#                   addfunccol='afvArea')
+#space_method options examples
+#use list('no_ssn', 'Exponential.Euclid', c('lon', 'lat')) if no ssn object is available
+}
+\author{
+Edgar Santos-Fernandez
 }

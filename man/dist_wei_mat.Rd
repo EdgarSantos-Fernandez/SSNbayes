@@ -20,6 +20,6 @@ A list of matrices
 Creates a list of distances and weights
 }
 \examples{
-#mat_all <- dist_wei_mat(path)
+\dontrun{mat_all <- dist_wei_mat(path)}
 
 }

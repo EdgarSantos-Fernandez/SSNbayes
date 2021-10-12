@@ -4,10 +4,12 @@
 \alias{collapse}
 \title{Collapses a SSN object into a data frame}
 \usage{
-collapse(t)
+collapse(t, par = "afvArea")
 }
 \arguments{
 \item{t}{Path to a SSN object}
+
+\item{par}{A spatial parameter}
 }
 \value{
 A data frame
@@ -16,6 +18,6 @@ A data frame
 Collapses a SSN object into a data frame
 }
 \examples{
-#t.df <- collapse(t)
+\dontrun{t.df <- collapse(t)}
 
 }

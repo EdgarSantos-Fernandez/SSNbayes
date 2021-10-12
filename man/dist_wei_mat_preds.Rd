@@ -20,7 +20,7 @@ A list of matrices
 The output matrices are symmetric except the hydrologic distance matrix D.
 }
 \examples{
-#mat_all <- dist_wei_mat_preds(path, net = 1, addfunccol = 'addfunccol')
+\dontrun{mat_all <- dist_wei_mat_preds(path, net = 1, addfunccol = 'addfunccol')}
 
 
 }

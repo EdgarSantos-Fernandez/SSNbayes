@@ -18,8 +18,8 @@ A list of matrices
 A simple modeling function using a formula and data
 }
 \examples{
-#options(na.action='na.pass')
-#out_list = mylm(formula = y ~ X1 + X2 + X3, data = data)
+\dontrun{options(na.action='na.pass')
+out_list = mylm(formula = y ~ X1 + X2 + X3, data = data)}
 
 }
 \author{
