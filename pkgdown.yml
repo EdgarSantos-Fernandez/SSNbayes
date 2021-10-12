@@ -1,6 +1,10 @@
 pandoc: 2.7.3
 pkgdown: 1.6.1
 pkgdown_sha: ~
-articles: {}
-last_built: 2021-10-12T02:15Z
+articles:
+  SSNbayes: SSNbayes.html
+last_built: 2021-10-12T02:23Z
+urls:
+  reference: https://edgarsantos-fernandez.github.io/SSNbayes/reference
+  article: https://edgarsantos-fernandez.github.io/SSNbayes/articles
 

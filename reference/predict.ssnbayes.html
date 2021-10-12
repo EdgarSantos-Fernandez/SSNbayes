@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Fits a mixed regression model using Stan — ssnbayes • SSNbayes</title>
+<title>Performs spatial prediction in R using an ssnbayes object from a fitted model. — predict.ssnbayes • SSNbayes</title>
 
 
 <!-- jquery -->
@@ -39,8 +39,9 @@
 
 
 
-<meta property="og:title" content="Fits a mixed regression model using Stan — ssnbayes" />
-<meta property="og:description" content="It requires the same number of observation/locations per day.
+<meta property="og:title" content="Performs spatial prediction in R using an ssnbayes object from a fitted model. — predict.ssnbayes" />
+<meta property="og:description" content="It will take an observed and a prediction data frame.
+It requires the same number of observation/locations per day.
 It requires location id (locID) and points id (pid).
 The locID are unique for each site.
 The pid is unique for each observation.
@@ -118,32 +119,32 @@ Missing values are allowed in the response but not in the covariates." />
 <div class="row">
   <div class="col-md-9 contents">
     <div class="page-header">
-    <h1>Fits a mixed regression model using Stan</h1>
+    <h1>Performs spatial prediction in R using an ssnbayes object from a fitted model.</h1>
     <small class="dont-index">Source: <a href='https://github.com/EdgarSantos-Fernandez/SSNbayes/blob/master/R/all_func.R'><code>R/all_func.R</code></a></small>
-    <div class="hidden name"><code>ssnbayes.Rd</code></div>
+    <div class="hidden name"><code>predict.ssnbayes.Rd</code></div>
     </div>
 
     <div class="ref-description">
-    <p>It requires the same number of observation/locations per day.
+    <p>It will take an observed and a prediction data frame.
+It requires the same number of observation/locations per day.
 It requires location id (locID) and points id (pid).
 The locID are unique for each site.
 The pid is unique for each observation.
 Missing values are allowed in the response but not in the covariates.</p>
     </div>
 
-    <pre class="usage"><span class='fu'>ssnbayes</span><span class='op'>(</span>
-  formula <span class='op'>=</span> <span class='va'>formula</span>,
-  data <span class='op'>=</span> <span class='va'>data</span>,
+    <pre class="usage"><span class='co'># S3 method for ssnbayes</span>
+<span class='fu'><a href='https://rdrr.io/r/stats/predict.html'>predict</a></span><span class='op'>(</span>
+  object <span class='op'>=</span> <span class='va'>object</span>,
+  <span class='va'>...</span>,
   path <span class='op'>=</span> <span class='va'>path</span>,
-  time_method <span class='op'>=</span> <span class='va'>time_method</span>,
-  space_method <span class='op'>=</span> <span class='va'>space_method</span>,
-  iter <span class='op'>=</span> <span class='fl'>3000</span>,
-  warmup <span class='op'>=</span> <span class='fl'>1500</span>,
-  chains <span class='op'>=</span> <span class='fl'>3</span>,
-  refresh <span class='op'>=</span> <span class='fu'><a href='https://rdrr.io/r/base/Extremes.html'>max</a></span><span class='op'>(</span><span class='va'>iter</span><span class='op'>/</span><span class='fl'>100</span>, <span class='fl'>1</span><span class='op'>)</span>,
-  net <span class='op'>=</span> <span class='fl'>1</span>,
+  obs_data <span class='op'>=</span> <span class='va'>obs_data</span>,
+  pred_data <span class='op'>=</span> <span class='va'>pred_data</span>,
+  net <span class='op'>=</span> <span class='va'>net</span>,
+  nsamples <span class='op'>=</span> <span class='va'>nsamples</span>,
   addfunccol <span class='op'>=</span> <span class='va'>addfunccol</span>,
-  loglik <span class='op'>=</span> <span class='cn'>F</span>,
+  locID_pred <span class='op'>=</span> <span class='va'>locID_pred</span>,
+  chunk_size <span class='op'>=</span> <span class='va'>chunk_size</span>,
   seed <span class='op'>=</span> <span class='va'>seed</span>
 <span class='op'>)</span></pre>
 
@@ -151,52 +152,44 @@ Missing values are allowed in the response but not in the covariates.</p>
     <table class="ref-arguments">
     <colgroup><col class="name" /><col class="desc" /></colgroup>
     <tr>
-      <th>formula</th>
-      <td><p>A formula as in lm()</p></td>
+      <th>object</th>
+      <td><p>A stanfit object returned from ssnbayes</p></td>
     </tr>
     <tr>
-      <th>data</th>
-      <td><p>A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.</p></td>
+      <th>...</th>
+      <td><p>Other parameters</p></td>
     </tr>
     <tr>
       <th>path</th>
       <td><p>Path with the name of the SSN object</p></td>
     </tr>
     <tr>
-      <th>time_method</th>
-      <td><p>A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.</p></td>
+      <th>obs_data</th>
+      <td><p>The observed data frame</p></td>
     </tr>
     <tr>
-      <th>space_method</th>
-      <td><p>A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a list with the lon and lat for Euclidean distance models.</p></td>
-    </tr>
-    <tr>
-      <th>iter</th>
-      <td><p>Number of iterations</p></td>
-    </tr>
-    <tr>
-      <th>warmup</th>
-      <td><p>Warm up samples</p></td>
-    </tr>
-    <tr>
-      <th>chains</th>
-      <td><p>Number of chains</p></td>
-    </tr>
-    <tr>
-      <th>refresh</th>
-      <td><p>Sampler refreshing rate</p></td>
+      <th>pred_data</th>
+      <td><p>The predicted data frame</p></td>
     </tr>
     <tr>
       <th>net</th>
-      <td><p>The network id (optional). Used when the SSN object cotains multiple networks.</p></td>
+      <td><p>(optional) Network from the SSN object</p></td>
+    </tr>
+    <tr>
+      <th>nsamples</th>
+      <td><p>The number of samples to draw from the posterior distributions. (nsamples &lt;= iter)</p></td>
     </tr>
     <tr>
       <th>addfunccol</th>
-      <td><p>Variable to compute the additive function. Used to compute the spatial weights.</p></td>
+      <td><p>The variable used for spatial weights</p></td>
     </tr>
     <tr>
-      <th>loglik</th>
-      <td><p>Logic parameter denoting if the loglik will be computed by the model.</p></td>
+      <th>locID_pred</th>
+      <td><p>(optional) the location id for the predictions. Used when the number of pred locations is large.</p></td>
+    </tr>
+    <tr>
+      <th>chunk_size</th>
+      <td><p>(optional) the number of locID to make prediction from</p></td>
     </tr>
     <tr>
       <th>seed</th>
@@ -206,35 +199,23 @@ Missing values are allowed in the response but not in the covariates.</p>
 
     <h2 class="hasAnchor" id="value"><a class="anchor" href="#value"></a>Value</h2>
 
-    <p>A list with the model fit</p>
-    <h2 class="hasAnchor" id="details"><a class="anchor" href="#details"></a>Details</h2>
-
-    <p>Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html</p>
+    <p>A data frame</p>
     <h2 class="hasAnchor" id="author"><a class="anchor" href="#author"></a>Author</h2>
 
     <p>Edgar Santos-Fernandez</p>
 
     <h2 class="hasAnchor" id="examples"><a class="anchor" href="#examples"></a>Examples</h2>
-    <pre class="examples"><div class='input'>
-<span class='co'>#library('SSNdata')</span>
-<span class='co'>#options(mc.cores = parallel::detectCores())</span>
-<span class='co'># Import SpatialStreamNetwork object</span>
-<span class='co'>#path &lt;- system.file("extdata/clearwater.ssn", package = "SSNdata")</span>
-<span class='co'>#n &lt;- importSSN(path, predpts = "preds", o.write = TRUE)</span>
-<span class='co'>## Imports a data.frame containing observations and covariates</span>
-<span class='co'>#clear &lt;- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNdata"))</span>
-<span class='co'>#fit_ar &lt;- ssnbayes(formula = y ~ SLOPE + elev + cumdrainag + air_temp + sin + cos,</span>
-<span class='co'>#                   data = clear,</span>
-<span class='co'>#                   path = path,</span>
-<span class='co'>#                   time_method = list("ar", "date"),</span>
-<span class='co'>#                   space_method = list('use_ssn', c("Exponential.taildown")),</span>
-<span class='co'>#                   iter = 2000,</span>
-<span class='co'>#                   warmup = 1000,</span>
-<span class='co'>#                   chains = 3,</span>
-<span class='co'>#                   net = 2, # second network on the ssn object</span>
-<span class='co'>#                   addfunccol='afvArea')</span>
-<span class='co'>#space_method options examples</span>
-<span class='co'>#use list('no_ssn', 'Exponential.Euclid', c('lon', 'lat')) if no ssn object is available</span>
+    <pre class="examples"><div class='input'><span class='co'>#clear_preds &lt;- readRDS(system.file("extdata/clear_preds.RDS", package = "SSNdata"))</span>
+<span class='co'>#clear_preds$y &lt;- NA</span>
+<span class='co'>#pred &lt;- predict(object = fit_ar,</span>
+<span class='co'>#                 path = path,</span>
+<span class='co'>#                 obs_data = clear,</span>
+<span class='co'>#                 pred_data = clear_preds,</span>
+<span class='co'>#                 net = 2,</span>
+<span class='co'>#                 nsamples = 100, # numb of samples from the posterior</span>
+<span class='co'>#                 addfunccol = 'afvArea', # var for spatial weights</span>
+<span class='co'>#                 locID_pred = locID_pred,</span>
+<span class='co'>#                 chunk_size = 60)</span>
 </div></pre>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
