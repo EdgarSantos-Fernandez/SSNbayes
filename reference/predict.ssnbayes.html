@@ -205,7 +205,9 @@ Missing values are allowed in the response but not in the covariates.</p>
     <p>Edgar Santos-Fernandez</p>
 
     <h2 class="hasAnchor" id="examples"><a class="anchor" href="#examples"></a>Examples</h2>
-    <pre class="examples"><div class='input'><span class='co'>#clear_preds &lt;- readRDS(system.file("extdata/clear_preds.RDS", package = "SSNdata"))</span>
+    <pre class="examples"><div class='input'><span class='co'># \donttest{</span>
+<span class='co'>#require('SSNdata')</span>
+<span class='co'>#clear_preds &lt;- readRDS(system.file("extdata/clear_preds.RDS", package = "SSNdata"))</span>
 <span class='co'>#clear_preds$y &lt;- NA</span>
 <span class='co'>#pred &lt;- predict(object = fit_ar,</span>
 <span class='co'>#                 path = path,</span>
@@ -216,6 +218,7 @@ Missing values are allowed in the response but not in the covariates.</p>
 <span class='co'>#                 addfunccol = 'afvArea', # var for spatial weights</span>
 <span class='co'>#                 locID_pred = locID_pred,</span>
 <span class='co'>#                 chunk_size = 60)</span>
+<span class='co'># }</span>
 </div></pre>
   </div>
   <div class="col-md-3 hidden-xs hidden-sm" id="pkgdown-sidebar">
