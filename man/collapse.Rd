@@ -18,6 +18,9 @@ A data frame
 Collapses a SSN object into a data frame
 }
 \examples{
-\dontrun{t.df <- collapse(t)}
-
+\donttest{
+require("SSN")
+path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
+n <- importSSN(path, predpts = "preds", o.write = TRUE)
+t.df <- collapse(n)}
 }

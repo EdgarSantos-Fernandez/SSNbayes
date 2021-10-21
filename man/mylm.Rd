@@ -18,9 +18,9 @@ A list of matrices
 A simple modeling function using a formula and data
 }
 \examples{
-\dontrun{options(na.action='na.pass')
-out_list = mylm(formula = y ~ X1 + X2 + X3, data = data)}
-
+options(na.action='na.pass')
+data("iris")
+out_list = mylm(formula = Petal.Length ~ Sepal.Length + Sepal.Width, data = iris)
 }
 \author{
 Jay ver Hoef

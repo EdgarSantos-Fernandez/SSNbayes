@@ -11,8 +11,12 @@
 #' @importFrom plyr .
 #' @export
 #' @examples
-#' \dontrun{t.df <- collapse(t)}
-#'
+#' \donttest{
+#' require("SSN")
+#' path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
+#' n <- importSSN(path, predpts = "preds", o.write = TRUE)
+#' t.df <- collapse(n)}
+
 
 collapse <- function(t, par = 'afvArea'){
   slot <- NULL
@@ -48,9 +52,10 @@ collapse <- function(t, par = 'afvArea'){
 #' @importFrom stats dist
 #' @export
 #' @examples
-#' \dontrun{mat_all <- dist_wei_mat(path)}
-#'
-
+#' \donttest{
+#' path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
+#' mat_all <- dist_wei_mat(path, net = 2, addfunccol='afvArea')
+#' }
 
 dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
   pid <- NULL
@@ -74,7 +79,7 @@ dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
   ni <- length(distmat[1,])
   ordpi <- order(as.numeric(rownames(distmat)))
   dist.junc[(nsofar + 1):(nsofar + ni), (nsofar + 1):(nsofar + ni)] <-
-    distmat[ordpi, ordpi, drop = F]
+    distmat[ordpi, ordpi, drop = FALSE]
   b.mat <- pmin(dist.junc, base::t(dist.junc))
   dist.hydro <- as.matrix(dist.junc + base::t(dist.junc))
   flow.con.mat <- 1 - (b.mat > 0) * 1
@@ -102,10 +107,6 @@ dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
   e <- coor %>%
     dist(., method = "euclidean", diag = FALSE, upper = FALSE) %>% as.matrix()
 
-  #e <- obs_data %>%
-  #  dplyr::select('coords.x1', 'coords.x2') %>%
-  #  dist(., method = "euclidean", diag = FALSE, upper = FALSE) %>% as.matrix()
-
   list(e = e, D = D, H = H, w.matrix = w.matrix, flow.con.mat = flow.con.mat)
 }
 
@@ -126,9 +127,10 @@ dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
 #' @export
 #' @description The output matrices are symmetric except the hydrologic distance matrix D.
 #' @examples
-#' \dontrun{mat_all <- dist_wei_mat_preds(path, net = 1, addfunccol = 'addfunccol')}
-#'
-#'
+#' \donttest{
+#' path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
+#' mat_all_pred <- dist_wei_mat_preds(path, net = 2, addfunccol='afvArea')}
+
 
 dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
   netID <- NULL
@@ -146,12 +148,12 @@ dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
   obs_data$locID_backup <- obs_data$locID
   pred_data$locID_backup <- pred_data$locID
 
-  if(file.exists(paste0(path, '/distance/preds')) == F) stop("no distance matrix available between predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = TRUE)")
+  if(file.exists(paste0(path, '/distance/preds')) == FALSE) stop("no distance matrix available between predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = TRUE)")
 
   # creating distance matrices
   doo <- readRDS(paste0(path, '/distance/obs/dist.net', net, '.RData'))
 
-  if(file.exists(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) == F) stop("no distance matrix available between observations and predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = TRUE)")
+  if(file.exists(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) == FALSE) stop("no distance matrix available between observations and predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = TRUE)")
   dop <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) # distance between observations
   dpo <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.b.RData'))
   dpp <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.RData'))
@@ -178,7 +180,7 @@ dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
   ni <- length(distmat[1,])
   ordpi <- order(as.numeric(rownames(distmat)))
   dist.junc[(nsofar + 1):(nsofar + ni), (nsofar + 1):(nsofar + ni)] <-
-    distmat[ordpi, ordpi, drop = F]
+    distmat[ordpi, ordpi, drop = FALSE]
   b.mat <- pmin(dist.junc, base::t(dist.junc))
   colnames(b.mat) <- colnames(D)
   rownames(b.mat) <- rownames(D)
@@ -240,9 +242,10 @@ dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
 #' @export
 #' @author Jay ver Hoef
 #' @examples
-#' \dontrun{options(na.action='na.pass')
-#' out_list = mylm(formula = y ~ X1 + X2 + X3, data = data)}
-#'
+#' options(na.action='na.pass')
+#' data("iris")
+#' out_list = mylm(formula = Petal.Length ~ Sepal.Length + Sepal.Width, data = iris)
+
 
 mylm <- function(formula, data) {
   # get response as a vector
@@ -293,14 +296,13 @@ mylm <- function(formula, data) {
 #' @importFrom stats dist
 #' @author Edgar Santos-Fernandez
 #' @examples
-#'
-#'#library('SSNdata')
+#'\dontrun{
 #'#options(mc.cores = parallel::detectCores())
 #'# Import SpatialStreamNetwork object
-#'#path <- system.file("extdata/clearwater.ssn", package = "SSNdata")
+#'#path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
 #'#n <- importSSN(path, predpts = "preds", o.write = TRUE)
 #'## Imports a data.frame containing observations and covariates
-#'#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNdata"))
+#'#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNbayes"))
 #'#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + cumdrainag + air_temp + sin + cos,
 #'#                   data = clear,
 #'#                   path = path,
@@ -314,6 +316,7 @@ mylm <- function(formula, data) {
 
 #' #space_method options examples
 #' #use list('no_ssn', 'Exponential.Euclid', c('lon', 'lat')) if no ssn object is available
+#'}
 
 ssnbayes <- function(formula = formula,
                      data = data,
@@ -326,7 +329,7 @@ ssnbayes <- function(formula = formula,
                      refresh = max(iter/100, 1),
                      net = 1,
                      addfunccol = addfunccol,
-                     loglik = F,
+                     loglik = FALSE,
                      seed = seed
 ){
 
@@ -341,8 +344,8 @@ ssnbayes <- function(formula = formula,
 
   time_points <- time_method[[2]]
 
-  #if('date' %in% names(data) == F) stop("There is no column date on the data. Please, set a column called date with the time")
-  if('locID' %in% names(data) == F) stop("There is no column locID on the data. Please, set a column called locID with the observation locations")
+  #if('date' %in% names(data) == FALSE) stop("There is no column date on the data. Please, set a column called date with the time")
+  if('locID' %in% names(data) == FALSE) stop("There is no column locID on the data. Please, set a column called locID with the observation locations")
 
   if(missing(seed)) seed <- sample(1:1E6,1,replace=TRUE)
 
@@ -355,7 +358,7 @@ ssnbayes <- function(formula = formula,
       if(length(space_method) > 1){
         if(space_method[[2]] %in% c("Exponential.tailup", "LinearSill.tailup" , "Spherical.tailup" ,
                                     "Exponential.taildown" ,"LinearSill.taildown" ,"Spherical.taildown",
-                                    "Exponential.Euclid") == F) {stop("Need to specify one or more of the following covariance matrices: Exponential.tailup, LinearSill.tailup , Spherical.tailup ,
+                                    "Exponential.Euclid") == FALSE) {stop("Need to specify one or more of the following covariance matrices: Exponential.tailup, LinearSill.tailup , Spherical.tailup ,
 		Exponential.taildown, LinearSill.taildown, Spherical.taildown or Exponential.Euclid")}
         CorModels <- space_method[[2]]
       }
@@ -367,8 +370,8 @@ ssnbayes <- function(formula = formula,
     }
     if(space_method[[1]] == 'no_ssn'){
       print('no SSN object defined')
-      ssn_object <- F
-      if(space_method[[2]] %in% c("Exponential.Euclid") == F) {stop("Need to specify Exponential.Euclid")}
+      ssn_object <- FALSE
+      if(space_method[[2]] %in% c("Exponential.Euclid") == FALSE) {stop("Need to specify Exponential.Euclid")}
       # when using Euclidean distance, need to specify the columns with long and lat.
       if(length(space_method) < 3){ stop("Please, specify the columns in the data frame with the latitude and longitude (c('lon', 'lat'))") }
 
@@ -380,7 +383,7 @@ ssnbayes <- function(formula = formula,
 
   }
 
-  if(missing(space_method)) {space_method <- 'no_ssn'; ssn_object <- F; CorModels <- "Exponential.Euclid" }# if missing use Euclidean distance
+  if(missing(space_method)) {space_method <- 'no_ssn'; ssn_object <- FALSE; CorModels <- "Exponential.Euclid" }# if missing use Euclidean distance
 
 
 
@@ -822,7 +825,7 @@ ssnbayes <- function(formula = formula,
     mat_all <- dist_wei_mat(path = path, net = net, addfunccol = addfunccol)
   }
 
-  if(ssn_object == F){ # the ssn object does not exist- purely spatial
+  if(ssn_object == FALSE){ # the ssn object does not exist- purely spatial
 
     first_date <- unique(obs_data[, names(obs_data) %in% time_points])[1]
 
@@ -873,7 +876,7 @@ ssnbayes <- function(formula = formula,
                      warmup = warmup,
                      init = ini,
                      chains = chains,
-                     verbose = F,
+                     verbose = FALSE,
                      seed = seed,
                      refresh = refresh
   )
@@ -917,6 +920,8 @@ ssnbayes <- function(formula = formula,
 #' @importFrom stats dist
 #' @author Edgar Santos-Fernandez
 #' @examples
+#' \donttest{
+#'#require('SSNdata')
 #'#clear_preds <- readRDS(system.file("extdata/clear_preds.RDS", package = "SSNdata"))
 #'#clear_preds$y <- NA
 #'#pred <- predict(object = fit_ar,
@@ -928,6 +933,7 @@ ssnbayes <- function(formula = formula,
 #'#                 addfunccol = 'afvArea', # var for spatial weights
 #'#                 locID_pred = locID_pred,
 #'#                 chunk_size = 60)
+#'}
 
 predict.ssnbayes <- function(object = object,
                              ...,
@@ -1003,7 +1009,7 @@ krig <- function(object = object,
 
   phi <- rstan::extract(stanfit, pars = 'phi')$phi
 
-  samples <- sample(1:nrow(phi), nsamples, replace = F)
+  samples <- sample(1:nrow(phi), nsamples, replace = FALSE)
   phi <- phi[samples]
 
   betas <- rstan::extract(stanfit, pars = 'beta')$beta

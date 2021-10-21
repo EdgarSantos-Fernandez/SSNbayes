@@ -16,7 +16,7 @@ ssnbayes(
   refresh = max(iter/100, 1),
   net = 1,
   addfunccol = addfunccol,
-  loglik = F,
+  loglik = FALSE,
   seed = seed
 )
 }
@@ -61,14 +61,13 @@ Missing values are allowed in the response but not in the covariates.
 Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html
 }
 \examples{
-
-#library('SSNdata')
+\dontrun{
 #options(mc.cores = parallel::detectCores())
 # Import SpatialStreamNetwork object
-#path <- system.file("extdata/clearwater.ssn", package = "SSNdata")
+#path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
 #n <- importSSN(path, predpts = "preds", o.write = TRUE)
 ## Imports a data.frame containing observations and covariates
-#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNdata"))
+#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNbayes"))
 #fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + cumdrainag + air_temp + sin + cos,
 #                   data = clear,
 #                   path = path,
@@ -81,6 +80,7 @@ Missing values are not allowed in the covariates and they must be imputed before
 #                   addfunccol='afvArea')
 #space_method options examples
 #use list('no_ssn', 'Exponential.Euclid', c('lon', 'lat')) if no ssn object is available
+}
 }
 \author{
 Edgar Santos-Fernandez

@@ -53,6 +53,8 @@ The pid is unique for each observation.
 Missing values are allowed in the response but not in the covariates.
 }
 \examples{
+\donttest{
+#require('SSNdata')
 #clear_preds <- readRDS(system.file("extdata/clear_preds.RDS", package = "SSNdata"))
 #clear_preds$y <- NA
 #pred <- predict(object = fit_ar,
@@ -64,6 +66,7 @@ Missing values are allowed in the response but not in the covariates.
 #                 addfunccol = 'afvArea', # var for spatial weights
 #                 locID_pred = locID_pred,
 #                 chunk_size = 60)
+}
 }
 \author{
 Edgar Santos-Fernandez

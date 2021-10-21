@@ -20,6 +20,8 @@ A list of matrices
 Creates a list of distances and weights
 }
 \examples{
-\dontrun{mat_all <- dist_wei_mat(path)}
-
+\donttest{
+path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
+mat_all <- dist_wei_mat(path, net = 2, addfunccol='afvArea')
+}
 }
