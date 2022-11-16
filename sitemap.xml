@@ -1,16 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
+    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/404.html</loc>
+  </url>
+  <url>
+    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/articles/SSNbayes.html</loc>
+  </url>
+  <url>
+    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/articles/index.html</loc>
+  </url>
+  <url>
+    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/authors.html</loc>
+  </url>
+  <url>
     <loc>https://edgarsantos-fernandez.github.io/SSNbayes/index.html</loc>
+  </url>
+  <url>
+    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/news/index.html</loc>
   </url>
   <url>
     <loc>https://edgarsantos-fernandez.github.io/SSNbayes/reference/collapse.html</loc>
   </url>
   <url>
-    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/reference/dist_wei_mat.html</loc>
+    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/reference/dist_weight_mat.html</loc>
   </url>
   <url>
-    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/reference/dist_wei_mat_preds.html</loc>
+    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/reference/dist_weight_mat_preds.html</loc>
+  </url>
+  <url>
+    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/reference/index.html</loc>
   </url>
   <url>
     <loc>https://edgarsantos-fernandez.github.io/SSNbayes/reference/krig.html</loc>
@@ -26,8 +44,5 @@
   </url>
   <url>
     <loc>https://edgarsantos-fernandez.github.io/SSNbayes/reference/ssnbayes.html</loc>
-  </url>
-  <url>
-    <loc>https://edgarsantos-fernandez.github.io/SSNbayes/articles/SSNbayes.html</loc>
   </url>
 </urlset>
