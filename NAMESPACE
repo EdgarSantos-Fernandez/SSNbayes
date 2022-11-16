@@ -2,8 +2,8 @@
 
 S3method(predict,ssnbayes)
 export(collapse)
-export(dist_wei_mat)
-export(dist_wei_mat_preds)
+export(dist_weight_mat)
+export(dist_weight_mat_preds)
 export(krig)
 export(mylm)
 export(pred_ssnbayes)

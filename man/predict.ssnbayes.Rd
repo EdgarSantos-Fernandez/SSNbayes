@@ -2,7 +2,7 @@
 % Please edit documentation in R/all_func.R
 \name{predict.ssnbayes}
 \alias{predict.ssnbayes}
-\title{Performs spatial prediction in R using an ssnbayes object from a fitted model.}
+\title{Performs spatio-temporal prediction in R using an ssnbayes object from a fitted model.}
 \usage{
 \method{predict}{ssnbayes}(
   object = object,

@@ -54,10 +54,10 @@ collapse <- function(t, par = 'afvArea'){
 #' @examples
 #' \donttest{
 #' path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
-#' mat_all <- dist_wei_mat(path, net = 2, addfunccol='afvArea')
+#' mat_all <- dist_weight_mat(path, net = 2, addfunccol='afvArea')
 #' }
 
-dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
+dist_weight_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
   pid <- NULL
   n  <- importSSN(path, o.write = TRUE)
   obs_data <- getSSNdata.frame(n, "Obs")
@@ -129,10 +129,10 @@ dist_wei_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
 #' @examples
 #' \donttest{
 #' path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
-#' mat_all_pred <- dist_wei_mat_preds(path, net = 2, addfunccol='afvArea')}
+#' mat_all_pred <- dist_weight_mat_preds(path, net = 2, addfunccol='afvArea')}
 
 
-dist_wei_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
+dist_weight_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol'){
   netID <- NULL
   locID <- NULL
   pid <- NULL
@@ -262,6 +262,35 @@ mylm <- function(formula, data) {
   return(list(y = y, X = X))
 }
 
+#' A simple modeling function using a formula and data
+#'
+#' @param formula A formula as in lm()
+#' @param data A data.frame containing the elements specified in the formula
+#' @return A list of matrices
+#' @importFrom stats model.matrix model.response
+#' @export
+#' @author Jay ver Hoef
+#' @examples
+#' options(na.action='na.pass')
+#' data("iris")
+#' out_list = mylm(formula = Petal.Length ~ Sepal.Length + Sepal.Width, data = iris)
+
+
+mylm <- function(formula, data) {
+  # get response as a vector
+  mf <- match.call(expand.dots = FALSE)
+  m <- match(c("formula", "data"), names(mf), 0L)
+  mf <- mf[c(1L, m)]
+  mf$drop.unused.levels <- TRUE
+  mf[[1L]] <- as.name("model.frame")
+  mf <- eval(mf, parent.frame())
+  y <- as.vector(model.response(mf, "numeric"))
+  # create design matrix
+  X <- model.matrix(formula, data)
+  # return a list of response vector and design matrix
+  return(list(y = y, X = X))
+}
+
 
 
 
@@ -303,7 +332,7 @@ mylm <- function(formula, data) {
 #'#n <- importSSN(path, predpts = "preds", o.write = TRUE)
 #'## Imports a data.frame containing observations and covariates
 #'#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNbayes"))
-#'#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + cumdrainag + air_temp + sin + cos,
+#'#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + h2o_area + air_temp + sin + cos,
 #'#                   data = clear,
 #'#                   path = path,
 #'#                   time_method = list("ar", "date"),
@@ -372,8 +401,8 @@ ssnbayes <- function(formula = formula,
       print('no SSN object defined')
       ssn_object <- FALSE
       if(space_method[[2]] %in% c("Exponential.Euclid") == FALSE) {stop("Need to specify Exponential.Euclid")}
-      # when using Euclidean distance, need to specify the columns with long and lat.
-      if(length(space_method) < 3){ stop("Please, specify the columns in the data frame with the latitude and longitude (c('lon', 'lat'))") }
+      # when using Euclidean distance, need to specify the columns with lon and lat.
+      if(length(space_method) < 3){ stop("Please, specify the columns in the data frame with the longitude and latitude (c('lon', 'lat'))") }
 
       data$lon <- data[,names(data) == space_method[[3]][1]]
       data$lat <- data[,names(data) == space_method[[3]][2]]
@@ -822,7 +851,7 @@ ssnbayes <- function(formula = formula,
   i_y_mis <- obs_data[is.na(obs_data$y),]$pid
 
   if(ssn_object == TRUE){ # the ssn object exist?
-    mat_all <- dist_wei_mat(path = path, net = net, addfunccol = addfunccol)
+    mat_all <- dist_weight_mat(path = path, net = net, addfunccol = addfunccol)
   }
 
   if(ssn_object == FALSE){ # the ssn object does not exist- purely spatial
@@ -891,7 +920,7 @@ ssnbayes <- function(formula = formula,
 
 
 
-#' Performs spatial prediction in R using an ssnbayes object from a fitted model.
+#' Performs spatio-temporal prediction in R using an ssnbayes object from a fitted model.
 #'
 #' It will take an observed and a prediction data frame.
 #' It requires the same number of observation/locations per day.
@@ -946,6 +975,13 @@ predict.ssnbayes <- function(object = object,
                              locID_pred = locID_pred,
                              chunk_size = chunk_size,
                              seed = seed) {
+
+  stanfit <- object
+  formula <- as.formula(attributes(stanfit)$formula)
+  obs_resp <- obs_data[,gsub("\\~.*", "", formula)[2]]
+  if( any( is.na(obs_resp) )) {stop("Can't have missing values in the response in the observed data. You need to impute them before")}
+
+
   out <- pred_ssnbayes(object = object,
                        path = path,
                        obs_data = obs_data,
@@ -962,7 +998,7 @@ predict.ssnbayes <- function(object = object,
 
 
 
-#' Internal function used to perform spatial prediction in R using a stanfit object from ssnbayes()
+#' Internal function used to perform spatio-temporal prediction in R using a stanfit object from ssnbayes()
 #'
 #' Use predict.ssnbayes() instead.
 #' It will take an observed and a prediction data frame.
@@ -1134,7 +1170,7 @@ krig <- function(object = object,
 
 
 
-#' Internal function used to perform spatial prediction in R using a stanfit object from ssnbayes()
+#' Internal function used to perform spatio-temporal prediction in R using a stanfit object from ssnbayes()
 #'
 #' Use predict.ssnbayes() instead.
 #' It will take an observed and a prediction data frame.
@@ -1192,7 +1228,7 @@ pred_ssnbayes <- function(
   set.seed(seed)
 
 
-  mat_all_preds <- dist_wei_mat_preds(path = path,
+  mat_all_preds <- dist_weight_mat_preds(path = path,
                                       net = net,
                                       addfunccol = addfunccol)
 
@@ -1233,7 +1269,7 @@ pred_ssnbayes <- function(
                 chunk_size = chunk_size,
                 obs_data = obs_data,
                 pred_data = pred_data,
-                net = 2)
+                net = net)
 
     out_all <- rbind(out_all, out)
   }

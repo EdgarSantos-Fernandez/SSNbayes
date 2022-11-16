@@ -2,7 +2,7 @@
 % Please edit documentation in R/all_func.R
 \name{krig}
 \alias{krig}
-\title{Internal function used to perform spatial prediction in R using a stanfit object from ssnbayes()}
+\title{Internal function used to perform spatio-temporal prediction in R using a stanfit object from ssnbayes()}
 \usage{
 krig(
   object = object,

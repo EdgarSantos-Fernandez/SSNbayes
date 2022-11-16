@@ -68,7 +68,7 @@ Missing values are not allowed in the covariates and they must be imputed before
 #n <- importSSN(path, predpts = "preds", o.write = TRUE)
 ## Imports a data.frame containing observations and covariates
 #clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNbayes"))
-#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + cumdrainag + air_temp + sin + cos,
+#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + h2o_area + air_temp + sin + cos,
 #                   data = clear,
 #                   path = path,
 #                   time_method = list("ar", "date"),
