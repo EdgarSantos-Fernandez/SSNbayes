@@ -5,11 +5,12 @@
 #' Collapses a SSN object into a data frame
 #'
 #' @param t Path to a SSN object
-#' @param par A spatial parameter
-#' @return A data frame
+#' @param par A spatial parameter such as the computed_afv (additive funvtion value).
+#' @return A data frame with the lat and long of the line segments in the network. The column slot refers to the lineID.
 #' @importFrom dplyr arrange
 #' @importFrom plyr .
 #' @export
+#' @details more details of the argument par can be found in the SSN::additive.function().
 #' @examples
 #' \donttest{
 #' require("SSN")
