@@ -3,7 +3,7 @@ pkgdown: 2.0.6
 pkgdown_sha: ~
 articles:
   SSNbayes: SSNbayes.html
-last_built: 2022-11-16T07:42Z
+last_built: 2022-11-30T05:19Z
 urls:
   reference: https://edgarsantos-fernandez.github.io/SSNbayes/reference
   article: https://edgarsantos-fernandez.github.io/SSNbayes/articles
