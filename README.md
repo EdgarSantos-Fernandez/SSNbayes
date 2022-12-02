@@ -37,6 +37,6 @@ These examples show the package in action:
 
 - kaggle.com/edsans/ssnbayes-simulated
 
-# Output
+# Example of one of the outputs produced
 
 ![Alt Text](inst/exc_ts.gif)
