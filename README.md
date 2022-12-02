@@ -20,13 +20,23 @@ install.packages("SSNbayes")
 
 And the development version from [GitHub](https://github.com/) with:
 
+``` r
+devtools::install_github("EdgarSantos-Fernandez/SSNbayes")
+```
+
 See more details in the article:
 
-“Bayesian spatio-temporal models for stream networks”
+\`\`Bayesian spatio-temporal models for stream networks’’
 (<https://www.sciencedirect.com/science/article/pii/S0167947322000263>)
 
-These reproducible examples show the package in action:
+# Reproducible examples
+
+These examples show the package in action:
 
 - kaggle.com/edsans/ssnbayes
 
-- kaggle.com/edsans/rstan
+- kaggle.com/edsans/ssnbayes-simulated
+
+# Output
+
+![Alt Text](inst/exc_ts.gif)
