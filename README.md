@@ -39,6 +39,6 @@ These examples show the package in action:
 
 # Example of one of the outputs produced
 
-Evolution of the network exceedance probability:
+Evolution of the Boise River exceedance probability:
 
 ![Alt Text](inst/exc_ts.gif)
