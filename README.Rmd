@@ -1,5 +1,6 @@
 ---
 output: github_document
+bibliography: .//inst//ref.bib 
 ---
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
@@ -18,7 +19,7 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-SSNbayes fits spatio-temporal stream network data using Bayesian inference.
+SSNbayes fits spatio-temporal stream network data using Bayesian inference in Stan.
 
 ## Installation
 
@@ -34,9 +35,7 @@ And the development version from [GitHub](https://github.com/) with:
 devtools::install_github("EdgarSantos-Fernandez/SSNbayes")
 ```
 
-See more details in the article:
-
-``Bayesian spatio-temporal models for stream networks'' (https://www.sciencedirect.com/science/article/pii/S0167947322000263)
+See more details in the articles @ssnbayesArxiv and  @SANTOSFERNANDEZ2022107446 
 
 
 # Reproducible examples
@@ -52,5 +51,7 @@ These examples show the package in action:
 Evolution of the Boise River exceedance probability: 
 
 ![Alt Text](inst/exc_ts.gif)
+
+# References
 
 
