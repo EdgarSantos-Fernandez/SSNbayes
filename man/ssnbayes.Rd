@@ -2,7 +2,7 @@
 % Please edit documentation in R/all_func.R
 \name{ssnbayes}
 \alias{ssnbayes}
-\title{Fits a mixed regression model using Stan}
+\title{Fits a mixed linear regression model using Stan}
 \usage{
 ssnbayes(
   formula = formula,
@@ -25,7 +25,7 @@ ssnbayes(
 
 \item{data}{A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.}
 
-\item{path}{Path with the name of the SSN object}
+\item{path}{Path with the name of the SpatialStreamNetwork object}
 
 \item{time_method}{A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.}
 
@@ -49,6 +49,8 @@ ssnbayes(
 }
 \value{
 A list with the model fit
+
+It returns a ssnbayes object (similar to stan returns). It includes the formula used to fit the model. The output can be transformed into the stanfit class using class(fits) <- c("stanfit").
 }
 \description{
 It requires the same number of observation/locations per day.

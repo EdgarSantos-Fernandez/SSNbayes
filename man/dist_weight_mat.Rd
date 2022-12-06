@@ -2,7 +2,7 @@
 % Please edit documentation in R/all_func.R
 \name{dist_weight_mat}
 \alias{dist_weight_mat}
-\title{Creates a list of distances and weights}
+\title{Creates a list containing the stream distances and weights}
 \usage{
 dist_weight_mat(path = path, net = 1, addfunccol = "addfunccol")
 }
@@ -17,7 +17,7 @@ dist_weight_mat(path = path, net = 1, addfunccol = "addfunccol")
 A list of matrices
 }
 \description{
-Creates a list of distances and weights
+Creates a list containing the stream distances and weights
 }
 \examples{
 \donttest{

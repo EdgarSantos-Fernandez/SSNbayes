@@ -7,9 +7,9 @@
 dist_weight_mat_preds(path = path, net = 1, addfunccol = "addfunccol")
 }
 \arguments{
-\item{path}{Path with the name of the SSN object}
+\item{path}{Path with the name of the SpatialStreamNetwork object}
 
-\item{net}{(optional) A network from the SSN object}
+\item{net}{(optional) A network from the SpatialStreamNetwork object}
 
 \item{addfunccol}{(optional) A parameter to compute the spatial weights}
 }

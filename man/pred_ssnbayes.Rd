@@ -20,7 +20,7 @@ pred_ssnbayes(
 \arguments{
 \item{object}{A stanfit object returned from ssnbayes}
 
-\item{path}{Path with the name of the SSN object}
+\item{path}{Path with the name of the SpatialStreamNetwork object}
 
 \item{obs_data}{The observed data frame}
 

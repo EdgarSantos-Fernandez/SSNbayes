@@ -2,25 +2,28 @@
 % Please edit documentation in R/all_func.R
 \name{collapse}
 \alias{collapse}
-\title{Collapses a SSN object into a data frame}
+\title{Collapses a SpatialStreamNetwork object into a data frame}
 \usage{
-collapse(t, par = "afvArea")
+collapse(ssn, par = "afvArea")
 }
 \arguments{
-\item{t}{Path to a SSN object}
+\item{ssn}{Path to a SpatialStreamNetwork object}
 
-\item{par}{A spatial parameter}
+\item{par}{A spatial parameter such as the computed_afv (additive function value).}
 }
 \value{
-A data frame
+A data frame with the lat and long of the line segments in the network. The column line_id refers to the ID of the line.
 }
 \description{
-Collapses a SSN object into a data frame
+Collapses a SpatialStreamNetwork object into a data frame
+}
+\details{
+The parameters (par) has to be present in the observed data frame via getSSNdata.frame(ssn, Name = "Obs"). More details of the argument par can be found in the SSN::additive.function().
 }
 \examples{
 \donttest{
 require("SSN")
 path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
-n <- importSSN(path, predpts = "preds", o.write = TRUE)
-t.df <- collapse(n)}
+ssn <- importSSN(path, predpts = "preds", o.write = TRUE)
+t.df <- collapse(ssn, par = 'afvArea')}
 }

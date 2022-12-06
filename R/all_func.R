@@ -2,37 +2,38 @@
 #   Check Package:             'Ctrl + Shift + E'
 #   Test Package:              'Ctrl + Shift + T'
 
-#' Collapses a SSN object into a data frame
+#' Collapses a SpatialStreamNetwork object into a data frame
 #'
-#' @param t Path to a SSN object
-#' @param par A spatial parameter such as the computed_afv (additive funvtion value).
-#' @return A data frame with the lat and long of the line segments in the network. The column slot refers to the lineID.
+#' @param ssn Path to a SpatialStreamNetwork object
+#' @param par A spatial parameter such as the computed_afv (additive function value).
+#' @return A data frame with the lat and long of the line segments in the network. The column line_id refers to the ID of the line.
 #' @importFrom dplyr arrange
 #' @importFrom plyr .
 #' @export
-#' @details more details of the argument par can be found in the SSN::additive.function().
+#' @details The parameters (par) has to be present in the observed data frame via getSSNdata.frame(ssn, Name = "Obs"). More details of the argument par can be found in the SSN::additive.function().
 #' @examples
 #' \donttest{
 #' require("SSN")
 #' path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
-#' n <- importSSN(path, predpts = "preds", o.write = TRUE)
-#' t.df <- collapse(n)}
+#' ssn <- importSSN(path, predpts = "preds", o.write = TRUE)
+#' t.df <- collapse(ssn, par = 'afvArea')}
 
 
-collapse <- function(t, par = 'afvArea'){
+collapse <- function(ssn, par = 'afvArea'){
   slot <- NULL
   df_all <- NULL
-  for (i in 1:length(t@lines)){
-    df <- data.frame(t@lines[[i]]@Lines[[1]]@coords)
-    df$slot <- t@lines[[i]]@ID
+  line_id <- NULL
+  for (i in 1:length(ssn@lines)){
+    df <- data.frame(ssn@lines[[i]]@Lines[[1]]@coords)
+    df$slot <- ssn@lines[[i]]@ID
+    df$computed_afv <- ssn@data[i, par]
 
-    df$computed_afv <- t@data[i, par]  # t@data$afvArea[i] #afvArea
-
-	df_all<- rbind(df, df_all)
-
-    df_all$slot <- as.numeric(as.character(df_all$slot))
-  }
-  df_all <-  dplyr::arrange(df_all, slot)
+    df$line_id <- as.numeric(as.character(df$slot))
+    df_all<- rbind(df, df_all)
+    }
+  df_all <-  dplyr::arrange(df_all, line_id)
+  df_all$slot <- NULL
+  names(df_all)[names(df_all) == 'computed_afv'] <- par
   df_all
 }
 
@@ -40,7 +41,7 @@ collapse <- function(t, par = 'afvArea'){
 
 
 
-#' Creates a list of distances and weights
+#' Creates a list containing the stream distances and weights
 #'
 #' @param path Path to the files
 #' @param net (optional) A network from the SSN object
@@ -116,8 +117,8 @@ dist_weight_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
 
 #' Creates a list of distances and weights between observed and prediction sites
 #'
-#' @param path Path with the name of the SSN object
-#' @param net (optional) A network from the SSN object
+#' @param path Path with the name of the SpatialStreamNetwork object
+#' @param net (optional) A network from the SpatialStreamNetwork object
 #' @param addfunccol (optional) A parameter to compute the spatial weights
 #' @return A list of matrices
 #' @importFrom dplyr mutate %>% distinct left_join case_when
@@ -295,7 +296,7 @@ mylm <- function(formula, data) {
 
 
 
-#' Fits a mixed regression model using Stan
+#' Fits a mixed linear regression model using Stan
 #'
 #' It requires the same number of observation/locations per day.
 #' It requires location id (locID) and points id (pid).
@@ -303,7 +304,7 @@ mylm <- function(formula, data) {
 #' The pid is unique for each observation.
 #' Missing values are allowed in the response but not in the covariates.
 #'
-#' @param path Path with the name of the SSN object
+#' @param path Path with the name of the SpatialStreamNetwork object
 #' @param formula A formula as in lm()
 #' @param data A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.
 #' @param space_method A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a list with the lon and lat for Euclidean distance models.
@@ -318,6 +319,7 @@ mylm <- function(formula, data) {
 #' @param seed (optional) A seed for reproducibility
 #' @return A list with the model fit
 #' @details Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html
+#' @return It returns a ssnbayes object (similar to stan returns). It includes the formula used to fit the model. The output can be transformed into the stanfit class using class(fits) <- c("stanfit").
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
 #' @importFrom plyr .
@@ -932,7 +934,7 @@ ssnbayes <- function(formula = formula,
 #'
 #' @param object A stanfit object returned from ssnbayes
 #' @param ... Other parameters
-#' @param path Path with the name of the SSN object
+#' @param path Path with the name of the SpatialStreamNetwork object
 #' @param obs_data The observed data frame
 #' @param pred_data The predicted data frame
 #' @param net (optional) Network from the SSN object
@@ -1182,7 +1184,7 @@ krig <- function(object = object,
 #' Missing values are allowed in the response but not in the covariates.
 #'
 #' @param object A stanfit object returned from ssnbayes
-#' @param path Path with the name of the SSN object
+#' @param path Path with the name of the SpatialStreamNetwork object
 #' @param obs_data The observed data frame
 #' @param pred_data The predicted data frame
 #' @param net (optional) Network from the SSN object
