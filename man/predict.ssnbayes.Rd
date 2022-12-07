@@ -42,7 +42,7 @@
 \item{seed}{(optional) A seed for reproducibility}
 }
 \value{
-A data frame
+A data frame with the location (locID), time point (date), plus the MCMC draws from the posterior from 1 to the number of iterations.
 }
 \description{
 It will take an observed and a prediction data frame.
@@ -51,6 +51,9 @@ It requires location id (locID) and points id (pid).
 The locID are unique for each site.
 The pid is unique for each observation.
 Missing values are allowed in the response but not in the covariates.
+}
+\details{
+The returned data frame is melted to produce a long dataset. See examples.
 }
 \examples{
 \donttest{

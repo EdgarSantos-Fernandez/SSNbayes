@@ -943,7 +943,8 @@ ssnbayes <- function(formula = formula,
 #' @param chunk_size (optional) the number of locID to make prediction from
 #' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
 #' @param seed (optional) A seed for reproducibility
-#' @return A data frame
+#' @return A data frame with the location (locID), time point (date), plus the MCMC draws from the posterior from 1 to the number of iterations.
+#' @details The returned data frame is melted to produce a long dataset. See examples.
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
 #' @importFrom plyr .
