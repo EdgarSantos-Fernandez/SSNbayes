@@ -32,7 +32,7 @@ collapse <- function(ssn, par = 'afvArea'){
     df_all<- rbind(df, df_all)
     }
   df_all <-  dplyr::arrange(df_all, line_id)
-  df_all$slot <- NULL
+  #df_all$slot <- NULL
   names(df_all)[names(df_all) == 'computed_afv'] <- par
   df_all
 }
