@@ -307,6 +307,7 @@ mylm <- function(formula, data) {
 #' @param path Path with the name of the SpatialStreamNetwork object
 #' @param formula A formula as in lm()
 #' @param data A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.
+#' The order in this data.fame MUST be: spatial locations (1 to S) at time t=1, then locations (1 to S) at t=2 and so on.
 #' @param space_method A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a list with the lon and lat for Euclidean distance models.
 #' @param time_method A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.
 #' @param iter Number of iterations
@@ -319,6 +320,7 @@ mylm <- function(formula, data) {
 #' @param seed (optional) A seed for reproducibility
 #' @return A list with the model fit
 #' @details Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html
+#' The pid in the data has to be consecutive from 1 to the number of observations.
 #' @return It returns a ssnbayes object (similar to stan returns). It includes the formula used to fit the model. The output can be transformed into the stanfit class using class(fits) <- c("stanfit").
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when

@@ -23,7 +23,8 @@ ssnbayes(
 \arguments{
 \item{formula}{A formula as in lm()}
 
-\item{data}{A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.}
+\item{data}{A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.
+The order in this data.fame MUST be: spatial locations (1 to S) at time t=1, then locations (1 to S) at t=2 and so on.}
 
 \item{path}{Path with the name of the SpatialStreamNetwork object}
 
@@ -61,6 +62,7 @@ Missing values are allowed in the response but not in the covariates.
 }
 \details{
 Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html
+The pid in the data has to be consecutive from 1 to the number of observations.
 }
 \examples{
 \dontrun{
