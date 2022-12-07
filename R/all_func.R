@@ -944,6 +944,7 @@ ssnbayes <- function(formula = formula,
 #' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
 #' @param seed (optional) A seed for reproducibility
 #' @return A data frame with the location (locID), time point (date), plus the MCMC draws from the posterior from 1 to the number of iterations.
+#' The locID0 column is an internal consecutive location ID (locID) produced in the predictions, starting at max(locID(observed data)) + 1. It is used internally in the way predictions are made in chunks.
 #' @details The returned data frame is melted to produce a long dataset. See examples.
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
@@ -1068,7 +1069,7 @@ krig <- function(object = object,
 
   pred_data$temp <- NA
 
-  locID_pred <- sort(unique(pred_data$locID)) #6422
+  locID_pred <- sort(unique(pred_data$locID))
 
   pred_data$locID0 <- as.numeric(factor(pred_data$locID)) # conseq locID
   pred_data$locID0 <- pred_data$locID0 + length(locID_obs) # adding numb of locID in obs dataset

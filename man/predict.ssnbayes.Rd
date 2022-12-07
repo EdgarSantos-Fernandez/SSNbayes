@@ -43,6 +43,7 @@
 }
 \value{
 A data frame with the location (locID), time point (date), plus the MCMC draws from the posterior from 1 to the number of iterations.
+The locID0 column is an internal consecutive location ID (locID) produced in the predictions, starting at max(locID(observed data)) + 1. It is used internally in the way predictions are made in chunks.
 }
 \description{
 It will take an observed and a prediction data frame.
