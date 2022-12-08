@@ -63,6 +63,8 @@ Missing values are allowed in the response but not in the covariates.
 \details{
 Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html
 The pid in the data has to be consecutive from 1 to the number of observations.
+Users can use the SpatialStreamNetwork created with the SSN package. This will provide the spatial stream information used to compute covariance matrices. If that is the case, the data has
+to have point ids (pid) matching the ones in SSN distance matrices, so that a mapping can occur.
 }
 \examples{
 \dontrun{

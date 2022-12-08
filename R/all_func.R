@@ -321,6 +321,8 @@ mylm <- function(formula, data) {
 #' @return A list with the model fit
 #' @details Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html
 #' The pid in the data has to be consecutive from 1 to the number of observations.
+#' Users can use the SpatialStreamNetwork created with the SSN package. This will provide the spatial stream information used to compute covariance matrices. If that is the case, the data has
+#' to have point ids (pid) matching the ones in SSN distance matrices, so that a mapping can occur.
 #' @return It returns a ssnbayes object (similar to stan returns). It includes the formula used to fit the model. The output can be transformed into the stanfit class using class(fits) <- c("stanfit").
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
