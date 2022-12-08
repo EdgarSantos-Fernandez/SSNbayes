@@ -4,7 +4,7 @@
 
 #' Collapses a SpatialStreamNetwork object into a data frame
 #'
-#' @param ssn Path to a SpatialStreamNetwork object
+#' @param ssn An S4 SpatialStreamNetwork object created with SSN package.
 #' @param par A spatial parameter such as the computed_afv (additive function value).
 #' @return A data frame with the lat and long of the line segments in the network. The column line_id refers to the ID of the line.
 #' @importFrom dplyr arrange

@@ -7,7 +7,7 @@
 collapse(ssn, par = "afvArea")
 }
 \arguments{
-\item{ssn}{Path to a SpatialStreamNetwork object}
+\item{ssn}{An S4 SpatialStreamNetwork object created with SSN package.}
 
 \item{par}{A spatial parameter such as the computed_afv (additive function value).}
 }
