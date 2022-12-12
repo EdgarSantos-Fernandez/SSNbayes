@@ -39,7 +39,7 @@ These examples show the package in action:
 
 Evolution of the Boise River exceedance probability:
 
-![Alt Text](inst/exc_ts.gif)
+![Alt Text](man/figures/exc_ts.gif)
 
 # References
 
