@@ -8,7 +8,7 @@ citEntry( entry = "article",
   pages = "107446",
 year = "2022",
 issn = "0167-9473",
-doi = "https://doi.org/10.1016/j.csda.2022.107446",
+doi = "10.1016/j.csda.2022.107446",
 url = "https://www.sciencedirect.com/science/article/pii/S0167947322000263",
 textVersion = "Santos-Fernandez, E., Ver Hoef, J. M., Peterson, E. E., McGree, J., Isaak, D. J., & Mengersen, K. (2022). Bayesian spatio-temporal models for stream networks. Computational Statistics & Data Analysis, 170, 107446.",
 )
