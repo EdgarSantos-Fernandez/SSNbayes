@@ -2,7 +2,7 @@ citHeader("To cite SSNbayes in publications use:")
 
 citEntry( entry = "article",
   title    = "Bayesian spatio-temporal models for stream networks",
-  author   = "Edgar Santos-Fernandez and Jay M. {Ver Hoef} and Erin E. Peterson and James McGree and Daniel J. Isaak and Kerrie Mengersen",
+  author   = "Edgar Santos-Fernandez and Jay M. Ver Hoef and Erin E. Peterson and James McGree and Daniel J. Isaak and Kerrie Mengersen",
   journal  = "Computational Statistics & Data Analysis",
   year     = "2022",
   pages = "107446",
