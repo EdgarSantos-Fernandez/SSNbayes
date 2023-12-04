@@ -1,26 +1,27 @@
-citHeader("To cite SSNbayes in publications use:")
+bibentry(bibtype = "Manual",
+         header = "To cite package ‘SSNbayes’ in publications use:",
+         title = "SSNbayes: Bayesian Spatio-Temporal Analysis in Stream Networks",
+         author = person(given = "Edgar",
+                         family = "Santos-Fernandez",
+                         role = c("aut", "cre", "cph"),
+                         email = "santosfe@qut.edu.au"),
+         note = "R package version 0.0.3",
+         url = "https://github.com/EdgarSantos-Fernandez/SSNbayes")
 
-citEntry( entry = "article",
-  title    = "Bayesian spatio-temporal models for stream networks",
-  author   = "Edgar Santos-Fernandez and Jay M. Ver Hoef and Erin E. Peterson and James McGree and Daniel J. Isaak and Kerrie Mengersen",
-  journal  = "Computational Statistics & Data Analysis",
-  year     = "2022",
-  pages = "107446",
-year = "2022",
-issn = "0167-9473",
-doi = "10.1016/j.csda.2022.107446",
-url = "https://www.sciencedirect.com/science/article/pii/S0167947322000263",
-textVersion = "Santos-Fernandez, E., Ver Hoef, J. M., Peterson, E. E., McGree, J., Isaak, D. J., & Mengersen, K. (2022). Bayesian spatio-temporal models for stream networks. Computational Statistics & Data Analysis, 170, 107446.",
+bibentry(
+	bibtype = "Article",
+	header = "To cite SSNbayes in publications, please use",
+	title = "Bayesian spatio-temporal models for stream networks",
+	author   = "Edgar Santos-Fernandez and Jay M. Ver Hoef and Erin E. Peterson and James McGree and Daniel J. Isaak and Kerrie Mengersen",
+	journal  = "Computational Statistics and Data Analysis",
+	year     = "2022",
+	pages = "107446",
+	year = "2022",
+	issn = "0167-9473",
+	doi = "10.1016/j.csda.2022.107446",
+	url = "https://www.sciencedirect.com/science/article/pii/S0167947322000263",
+	textVersion = "Santos-Fernandez, E., Ver Hoef, J. M., Peterson, E. E., McGree, J., Isaak, D. J., & Mengersen, K. (2022). Bayesian spatio-temporal models for stream networks. Computational Statistics & Data Analysis, 170, 107446."
 )
 
 
-citEntry( entry = "Manual",
-  title    = "SSNbayes: Bayesian Spatio-Temporal Analysis in Stream Networks",
-  author   = "Edgar Santos-Fernandez",
-  journal  = "R package",
-  year     = 2022,
-  url      = "https://github.com/EdgarSantos-Fernandez/SSNbayes",
-  note = "The Comprehensive R Archive Network",
-  textVersion = "Santos-Fernandez. E. 2022. SSNbayes: spatial stream network datasets. R package. https://github.com/EdgarSantos-Fernandez/SSNbayes"
-)
 

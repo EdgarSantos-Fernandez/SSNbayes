@@ -20,7 +20,7 @@ A list of matrices
 The output matrices are symmetric except the hydrologic distance matrix D.
 }
 \examples{
-\donttest{
+\dontrun{
 path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
 mat_all_pred <- dist_weight_mat_preds(path, net = 2, addfunccol='afvArea')}
 }

@@ -40,7 +40,7 @@ The order in this data.fame MUST be: spatial locations (1 to S) at time t=1, the
 
 \item{refresh}{Sampler refreshing rate}
 
-\item{net}{The network id (optional). Used when the SSN object cotains multiple networks.}
+\item{net}{The network id (optional). Used when the SSN object contains multiple networks.}
 
 \item{addfunccol}{Variable to compute the additive function. Used to compute the spatial weights.}
 
@@ -71,7 +71,7 @@ to have point ids (pid) matching the ones in SSN distance matrices, so that a ma
 #options(mc.cores = parallel::detectCores())
 # Import SpatialStreamNetwork object
 #path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
-#n <- importSSN(path, predpts = "preds", o.write = TRUE)
+#n <- SSN2::ssn_import(path, predpts = "preds", overwrite  = TRUE)
 ## Imports a data.frame containing observations and covariates
 #clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNbayes"))
 #fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + h2o_area + air_temp + sin + cos,

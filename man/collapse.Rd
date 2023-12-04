@@ -7,7 +7,7 @@
 collapse(ssn, par = "afvArea")
 }
 \arguments{
-\item{ssn}{An S4 SpatialStreamNetwork object created with SSN package.}
+\item{ssn}{An S4 SpatialStreamNetwork object created with SSN2 package.}
 
 \item{par}{A spatial parameter such as the computed_afv (additive function value).}
 }
@@ -18,12 +18,12 @@ A data frame with the lat and long of the line segments in the network. The colu
 Collapses a SpatialStreamNetwork object into a data frame
 }
 \details{
-The parameters (par) has to be present in the observed data frame via getSSNdata.frame(ssn, Name = "Obs"). More details of the argument par can be found in the SSN::additive.function().
+The parameters (par) has to be present in the observed data frame via ssn_get_data(n, name = "obs"). More details of the argument par can be found in the additive.function() from SSN .
 }
 \examples{
 \donttest{
-require("SSN")
-path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
-ssn <- importSSN(path, predpts = "preds", o.write = TRUE)
-t.df <- collapse(ssn, par = 'afvArea')}
+#require("SSN2")
+#path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
+#ssn <- SSN2::ssn_import(path, predpts = "preds", overwrite  = TRUE)
+#t.df <- collapse(ssn, par = 'afvArea')}
 }

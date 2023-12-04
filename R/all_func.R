@@ -4,29 +4,37 @@
 
 #' Collapses a SpatialStreamNetwork object into a data frame
 #'
-#' @param ssn An S4 SpatialStreamNetwork object created with SSN package.
+#' @param ssn An S4 SpatialStreamNetwork object created with SSN2 package.
 #' @param par A spatial parameter such as the computed_afv (additive function value).
 #' @return A data frame with the lat and long of the line segments in the network. The column line_id refers to the ID of the line.
 #' @importFrom dplyr arrange
 #' @importFrom plyr .
+#' @importFrom sf st_read st_geometry_type as_Spatial st_union
 #' @export
-#' @details The parameters (par) has to be present in the observed data frame via getSSNdata.frame(ssn, Name = "Obs"). More details of the argument par can be found in the SSN::additive.function().
+#' @details The parameters (par) has to be present in the observed data frame via ssn_get_data(n, name = "obs"). More details of the argument par can be found in the additive.function() from SSN .
 #' @examples
 #' \donttest{
-#' require("SSN")
-#' path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
-#' ssn <- importSSN(path, predpts = "preds", o.write = TRUE)
-#' t.df <- collapse(ssn, par = 'afvArea')}
+#' #require("SSN2")
+#' #path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
+#' #ssn <- SSN2::ssn_import(path, predpts = "preds", overwrite  = TRUE)
+#' #t.df <- collapse(ssn, par = 'afvArea')}
 
 
 collapse <- function(ssn, par = 'afvArea'){
   slot <- NULL
   df_all <- NULL
   line_id <- NULL
-  for (i in 1:length(ssn@lines)){
-    df <- data.frame(ssn@lines[[i]]@Lines[[1]]@coords)
-    df$slot <- ssn@lines[[i]]@ID
-    df$computed_afv <- ssn@data[i, par]
+
+  df0 <- ssn[[1]] %>% st_union
+  df0 <- df0[[1]]
+
+  for (i in 1:length(df0)){
+    df <- data.frame(df0[i])
+    df$slot <- i #ssn@lines[[i]]@ID
+
+    vec <- as.data.frame(ssn[[1]][i, par])
+
+    df$computed_afv <- vec[,1]#ssn[[2]][i, par]
 
     df$line_id <- as.numeric(as.character(df$slot))
     df_all<- rbind(df, df_all)
@@ -44,14 +52,16 @@ collapse <- function(ssn, par = 'afvArea'){
 #' Creates a list containing the stream distances and weights
 #'
 #' @param path Path to the files
-#' @param net (optional) A network from the SSN object
+#' @param net (optional) A network from the SSN2 object
 #' @param addfunccol (optional) A parameter to compute the spatial weights
 #' @return A list of matrices
 #' @importFrom dplyr mutate %>% distinct left_join case_when
 #' @importFrom plyr .
-#' @importFrom SSN importSSN getSSNdata.frame
 #' @importFrom rstan stan
 #' @importFrom stats dist
+#' @importFrom SSN2 ssn_get_data
+#' @importFrom sf st_coordinates
+#' @importFrom methods is
 #' @export
 #' @examples
 #' \donttest{
@@ -59,10 +69,19 @@ collapse <- function(ssn, par = 'afvArea'){
 #' mat_all <- dist_weight_mat(path, net = 2, addfunccol='afvArea')
 #' }
 
+
 dist_weight_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
   pid <- NULL
-  n  <- importSSN(path, o.write = TRUE)
-  obs_data <- getSSNdata.frame(n, "Obs")
+  n  <- SSN2::ssn_import(path, overwrite  = TRUE)
+  obs_data <- SSN2::ssn_get_data(n, name = "obs")
+
+  if(is(n) == 'SSN'){
+    xy <- st_coordinates(obs_data)
+    colnames(xy) <- c('NEAR_X', 'NEAR_Y')
+    obs_data <- cbind(obs_data, xy)
+  }
+  obs_data <- obs_data %>% as.data.frame()
+
 
   # creating distance matrices
   D <- readRDS(paste0(path, '/distance/obs/dist.net', net, '.RData')) # distance between observations
@@ -70,11 +89,11 @@ dist_weight_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
   # total distance
   H <- D + base::t(D)
 
-  obs_data <- dplyr::filter(obs_data, pid %in% colnames(H))
+  obs_data <- dplyr::filter(obs_data, pid %in% colnames(H)) %>% as.data.frame()
   # NB replace here by the variable used for spatial weights
   afv <- obs_data[c('locID', addfunccol)] %>% distinct()
 
-  # codes from SSN::glmssn
+  # codes from SSN glmssn
   nsofar <- 0
   dist.junc <- matrix(0, nrow = length(afv[, 1]), ncol = length(afv[,1]))
   distmat <- D
@@ -105,12 +124,14 @@ dist_weight_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
   obs_data$coords.x1 <- obs_data$NEAR_X
   obs_data$coords.x2 <- obs_data$NEAR_Y
 
-  coor <- n@obspoints@SSNPoints[[1]]@point.coords
+  #coor <- n@obspoints@SSNPoints[[1]]@point.coords
+  coor <- obs_data[, c('NEAR_X', 'NEAR_Y')] #NB: check
   e <- coor %>%
     dist(., method = "euclidean", diag = FALSE, upper = FALSE) %>% as.matrix()
 
   list(e = e, D = D, H = H, w.matrix = w.matrix, flow.con.mat = flow.con.mat)
 }
+
 
 
 
@@ -121,15 +142,16 @@ dist_weight_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
 #' @param net (optional) A network from the SpatialStreamNetwork object
 #' @param addfunccol (optional) A parameter to compute the spatial weights
 #' @return A list of matrices
-#' @importFrom dplyr mutate %>% distinct left_join case_when
+#' @importFrom dplyr mutate %>% distinct left_join case_when bind_rows
 #' @importFrom plyr .
-#' @importFrom SSN importSSN getSSNdata.frame
 #' @importFrom rstan stan
 #' @importFrom stats dist
+#' @importFrom SSN2 ssn_get_data
+#' @importFrom methods is
 #' @export
 #' @description The output matrices are symmetric except the hydrologic distance matrix D.
 #' @examples
-#' \donttest{
+#' \dontrun{
 #' path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
 #' mat_all_pred <- dist_weight_mat_preds(path, net = 2, addfunccol='afvArea')}
 
@@ -139,10 +161,16 @@ dist_weight_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol
   locID <- NULL
   pid <- NULL
 
-  n  <- importSSN(path, predpts = 'preds', o.write = TRUE)
+  #Some weird error from SSN
+  #n <- SSN2::ssn_import(path = path, predpts = "preds", overwrite  = TRUE)
+  t <- try(n <- SSN2::ssn_import(path, predpts = "preds", overwrite  = TRUE),
+           silent = TRUE)
+  if("try-error" %in% class(t)){n <- SSN2::ssn_import(paste0(getwd(), path), predpts = "preds", overwrite  = TRUE)}
 
-  obs_data <- getSSNdata.frame(n, "Obs")
-  pred_data <- getSSNdata.frame(n, "preds")
+
+  obs_data <- SSN2::ssn_get_data(n, "obs")
+  pred_data <- SSN2::ssn_get_data(n, name = "preds")
+
 
   obs_data <- dplyr::filter(obs_data, netID == net ) %>% arrange(locID)
   pred_data <- dplyr::filter(pred_data, netID == net ) %>% arrange(locID)
@@ -150,19 +178,31 @@ dist_weight_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol
   obs_data$locID_backup <- obs_data$locID
   pred_data$locID_backup <- pred_data$locID
 
-  if(file.exists(paste0(path, '/distance/preds')) == FALSE) stop("no distance matrix available between predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = TRUE)")
+  if(is(n) == 'SSN'){
+    xy <- st_coordinates(obs_data)
+    colnames(xy) <- c('NEAR_X', 'NEAR_Y')
+    obs_data <- cbind(obs_data, xy)
+
+    xy2 <- st_coordinates(pred_data)
+    colnames(xy2) <- c('NEAR_X', 'NEAR_Y')
+    pred_data <- cbind(pred_data, xy2)
+  }
+  obs_data <- obs_data %>% as.data.frame()
+  pred_data <- pred_data %>% as.data.frame()
+
+  if(file.exists(paste0(path, '/distance/preds')) == FALSE) stop("no distance matrix available between predictions. Please, use SSN2::ssn_create_distmat(n, predpts = 'preds', overwrite =TRUE, among_predpts  = TRUE)")
 
   # creating distance matrices
   doo <- readRDS(paste0(path, '/distance/obs/dist.net', net, '.RData'))
 
-  if(file.exists(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) == FALSE) stop("no distance matrix available between observations and predictions. Please, use createDistMat(ssn_object, predpts = 'preds', o.write=TRUE, amongpreds = TRUE)")
+  if(file.exists(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) == FALSE) stop("no distance matrix available between observations and predictions. Please, use SSN2::ssn_create_distmat(n, predpts = 'preds', overwrite =TRUE, among_predpts  = TRUE)")
   dop <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.a.RData')) # distance between observations
   dpo <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.b.RData'))
   dpp <- readRDS(paste0(path, '/distance/preds/dist.net', net, '.RData'))
 
   D <- rbind(cbind(doo, dop), cbind(dpo, dpp))
 
-  colnames(D)
+  #colnames(D)
 
   H <- D + base::t(D)
 
@@ -170,10 +210,10 @@ dist_weight_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol
 
   pred_data <- dplyr::filter(pred_data, pid %in% colnames(H))
   # NB replace here by the variable used for spatial weights
-  afv1 <-  obs_data[c('locID', addfunccol)] %>% distinct()
-  afv2 <- pred_data[c('locID', addfunccol)] %>% distinct()
+  afv1 <-  obs_data[c('locID', addfunccol)] %>% distinct() %>% as.data.frame()
+  afv2 <- pred_data[c('locID', addfunccol)] %>% distinct() %>% as.data.frame()
 
-  afv <- rbind(afv1, afv2)
+  afv <- dplyr::bind_rows(afv1, afv2)
 
   # codes from SSN::glmssn
   nsofar <- 0
@@ -201,25 +241,33 @@ dist_weight_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol
 
   # Euclidean distance
 
-  obs_data_coord <- data.frame(n@obspoints@SSNPoints[[1]]@point.coords)
+  obs_data_coord <- obs_data[, c('NEAR_X', 'NEAR_Y', 'locID')] #NB: check
+
+  #obs_data_coord <- data.frame(n@obspoints@SSNPoints[[1]]@point.coords)
   obs_data_coord$locID <- factor(1:nrow(obs_data_coord))
   obs_data_coord$locID <- as.numeric(as.character(obs_data_coord$locID))
 
   obs_data$locID <- as.numeric(factor(obs_data$locID))
-  obs_data <- obs_data %>% left_join(obs_data_coord, by = c('locID'))
+  #obs_data <- obs_data %>% left_join(obs_data_coord, by = c('locID'))
   obs_data$point <- 'Obs'
 
-  pred_data_coord <- data.frame(n@predpoints@SSNPoints[[1]]@point.coords)
+  pred_data_coord <- pred_data[, c('NEAR_X', 'NEAR_Y', 'locID')] #data.frame(n@predpoints@SSNPoints[[1]]@point.coords)
   pred_data_coord$locID <- factor( (max(as.numeric(as.character(obs_data_coord$locID))) + 1)
                                    :(nrow(pred_data_coord)+ (max(as.numeric(as.character(obs_data_coord$locID))) )))
   pred_data_coord$locID <- as.numeric(as.character(pred_data_coord$locID))
 
   pred_data$locID <- as.numeric(factor(pred_data$locID)) + max(obs_data$locID )
-  pred_data <- pred_data %>% left_join(pred_data_coord, by = c('locID'))
+  #pred_data <- pred_data %>% left_join(pred_data_coord, by = c('locID'))
   pred_data$point <- 'preds'
 
-  all_data <- rbind(obs_data[c('coords.x1', 'coords.x2')],
-                    pred_data[c('coords.x1', 'coords.x2')])
+  #all_data <- rbind(obs_data[c('coords.x1', 'coords.x2')],
+  #                  pred_data[c('coords.x1', 'coords.x2')])
+
+  all_data <- dplyr::bind_rows(obs_data[c('NEAR_X', 'NEAR_Y')] %>% as.data.frame(),
+                               pred_data[c('NEAR_X', 'NEAR_Y')] %>% as.data.frame())
+
+  all_data$coords.x1 <- all_data$NEAR_X
+  all_data$coords.x2 <- all_data$NEAR_Y
 
   e <- all_data %>%
     dplyr::select('coords.x1', 'coords.x2') %>%
@@ -229,6 +277,7 @@ dist_weight_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol
 
   list(e = e, D = D, H = H, w.matrix = w.matrix, flow.con.mat = flow.con.mat)
 }
+
 
 
 
@@ -314,7 +363,7 @@ mylm <- function(formula, data) {
 #' @param warmup Warm up samples
 #' @param chains Number of chains
 #' @param refresh Sampler refreshing rate
-#' @param net The network id (optional). Used when the SSN object cotains multiple networks.
+#' @param net The network id (optional). Used when the SSN object contains multiple networks.
 #' @param addfunccol Variable to compute the additive function. Used to compute the spatial weights.
 #' @param loglik Logic parameter denoting if the loglik will be computed by the model.
 #' @param seed (optional) A seed for reproducibility
@@ -327,7 +376,6 @@ mylm <- function(formula, data) {
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
 #' @importFrom plyr .
-#' @importFrom SSN importSSN getSSNdata.frame
 #' @importFrom rstan stan
 #' @importFrom stats dist
 #' @author Edgar Santos-Fernandez
@@ -336,7 +384,7 @@ mylm <- function(formula, data) {
 #'#options(mc.cores = parallel::detectCores())
 #'# Import SpatialStreamNetwork object
 #'#path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
-#'#n <- importSSN(path, predpts = "preds", o.write = TRUE)
+#'#n <- SSN2::ssn_import(path, predpts = "preds", overwrite  = TRUE)
 #'## Imports a data.frame containing observations and covariates
 #'#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNbayes"))
 #'#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + h2o_area + air_temp + sin + cos,
@@ -953,7 +1001,6 @@ ssnbayes <- function(formula = formula,
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
 #' @importFrom plyr .
-#' @importFrom SSN importSSN getSSNdata.frame
 #' @importFrom rstan stan
 #' @importFrom stats dist
 #' @author Edgar Santos-Fernandez
@@ -1030,7 +1077,6 @@ predict.ssnbayes <- function(object = object,
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
 #' @importFrom plyr .
-#' @importFrom SSN importSSN getSSNdata.frame
 #' @importFrom rstan stan
 #' @importFrom stats dist
 #' @importFrom stats as.formula
@@ -1203,7 +1249,6 @@ krig <- function(object = object,
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
 #' @importFrom plyr .
-#' @importFrom SSN importSSN getSSNdata.frame
 #' @importFrom rstan stan
 #' @importFrom stats dist
 #' @author Edgar Santos-Fernandez

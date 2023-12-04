@@ -9,7 +9,7 @@ dist_weight_mat(path = path, net = 1, addfunccol = "addfunccol")
 \arguments{
 \item{path}{Path to the files}
 
-\item{net}{(optional) A network from the SSN object}
+\item{net}{(optional) A network from the SSN2 object}
 
 \item{addfunccol}{(optional) A parameter to compute the spatial weights}
 }
