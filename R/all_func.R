@@ -38,7 +38,7 @@ collapse <- function(ssn, par = 'afvArea'){
 
     df$line_id <- as.numeric(as.character(df$slot))
     df_all<- rbind(df, df_all)
-    }
+  }
   df_all <-  dplyr::arrange(df_all, line_id)
   #df_all$slot <- NULL
   names(df_all)[names(df_all) == 'computed_afv'] <- par
@@ -894,7 +894,7 @@ ssnbayes <- function(formula = formula,
   # array structure
   X <- design_matrix #cbind(1,obs_data[, c("X1", "X2", "X3")]) # design matrix
 
-    # NB: this array order is Stan specific
+  # NB: this array order is Stan specific
   Xarray <- aperm(array( c(X), dim=c(N, ndays, ncol(X)) ),c(2, 1, 3))
 
   y_obs <- response[!is.na(response)]
@@ -970,6 +970,829 @@ ssnbayes <- function(formula = formula,
 
   fit
 }
+
+#' Fits a mixed linear regression model using Stan
+#'
+#' It requires the same number of observation/locations per day.
+#' It requires location id (locID) and points id (pid).
+#' The locID are unique for each site.
+#' The pid is unique for each observation.
+#' Missing values are allowed in the response and in the covariates.
+#' Missing values are imputed using the `mtsdi` pacakge, with a `glm` family.
+#'
+#' @param path Path with the name of the SpatialStreamNetwork object
+#' @param formula A formula as in lm()
+#' @param family A description of the response distribution and link function to be used in the model. Must be one of: 'gaussian', 'binomial', 'poisson".
+#' @param data A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.
+#' The order in this data.fame MUST be: spatial locations (1 to S) at time t=1, then locations (1 to S) at t=2 and so on.
+#' @param space_method A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a list with the lon and lat for Euclidean distance models.
+#' @param time_method A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.
+#' @param iter Number of iterations
+#' @param warmup Warm up samples
+#' @param chains Number of chains
+#' @param cores Number of cores
+#' @param refresh Sampler refreshing rate
+#' @param net The network id (optional). Used when the SSN object cotains multiple networks.
+#' @param addfunccol Variable to compute the additive function. Used to compute the spatial weights.
+#' @param loglik Logic parameter denoting if the loglik will be computed by the model.
+#' @param seed (optional) A seed for reproducibility
+#' @return A list with the model fit
+#' @details Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html.
+#' Missing values on the response variable can be imputed by default using mtsdi::mnimput(). We strongly recommend the documentation for this function be read before use.
+#' The pid in the data has to be consecutive from 1 to the number of observations.
+#' Users can use the SpatialStreamNetwork created with the SSN package. This will provide the spatial stream information used to compute covariance matrices. If that is the case, the data has
+#' to have point ids (pid) matching the ones in SSN distance matrices, so that a mapping can occur.
+#' @return It returns a ssnbayes object (similar to stan returns). It includes the formula used to fit the model. The output can be transformed into the stanfit class using class(fits) <- c("stanfit").
+#' @export
+#' @importFrom dplyr mutate %>% distinct left_join case_when
+#' @importFrom plyr .
+#' @importFrom rstan stan_model sampling
+#' @importFrom stats dist
+#' @importFrom mtsdi mnimput
+#' @author Edgar Santos-Fernandez
+#' @examples
+#'\dontrun{
+#'#options(mc.cores = parallel::detectCores())
+#'# Import SpatialStreamNetwork object
+#'#path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
+#'#n <- importSSN(path, predpts = "preds", o.write = TRUE)
+#'#family <-  "gaussian"
+#'## Imports a data.frame containing observations and covariates
+#'#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNbayes"))
+#'#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + h2o_area + air_temp + sin + cos,
+#'#                   data = clear,
+#'#                   path = path,
+#'#                   family = family,
+#'#                   time_method = list("ar", "date"),
+#'#                   space_method = list('use_ssn', c("Exponential.taildown")),
+#'#                   iter = 2000,
+#'#                   warmup = 1000,
+#'#                   chains = 3,
+#'#                   cores = 3,
+#'#                   net = 2, # second network on the ssn object
+#'#                   addfunccol='afvArea')
+
+#' #space_method options examples
+#' #use list('no_ssn', 'Exponential.Euclid', c('lon', 'lat')) if no ssn object is available
+#'}
+
+ssnbayes2 <- function(formula = formula,
+                      family = family,
+                      data = data,
+                      path = path,
+                      time_method = time_method, # list("ar", "date")
+                      space_method = space_method, #list('use_ssn', 'Exponential.tailup'),
+                      iter = 3000,
+                      warmup = 1500,
+                      chains = 3,
+                      cores = 3,
+                      refresh = max(iter/100, 1),
+                      net = 1,
+                      addfunccol = addfunccol,
+                      loglik = FALSE,
+                      seed = seed
+){
+
+  # checks
+  if(missing(time_method)){
+    stop("Need to define the method (ar or var) and the column associated with time")
+  }
+
+  if(length(time_method) == 1){
+    stop("Need to specify the column in the the data with the time variable")
+  }
+
+  if(missing(family)){
+    stop("Need to specify the response distribution with the family variable")
+  }
+
+  if(!family %in% c("gaussian", "binomial", "poisson")){
+    stop("family must be one of: 'gaussian', 'binomial', 'poisson")
+  }
+
+  time_points <- time_method[[2]]
+
+  #if('date' %in% names(data) == FALSE) stop("There is no column date on the data. Please, set a column called date with the time")
+  if('locID' %in% names(data) == FALSE) stop("There is no column locID on the data. Please, set a column called locID with the observation locations")
+
+  if(missing(seed)) seed <- sample(1:1E6,1,replace=TRUE)
+
+  if(!missing(space_method)){
+    message('Using SSN object...')
+    if(space_method[[1]] == 'use_ssn'){
+      ssn_object <- TRUE
+
+
+      if(length(space_method) > 1){
+        if(space_method[[2]] %in% c("Exponential.tailup", "LinearSill.tailup" , "Spherical.tailup" ,
+                                    "Exponential.taildown" ,"LinearSill.taildown" ,"Spherical.taildown",
+                                    "Exponential.Euclid") == FALSE) {stop("Need to specify one or more of the following covariance matrices: Exponential.tailup, LinearSill.tailup , Spherical.tailup ,
+		Exponential.taildown, LinearSill.taildown, Spherical.taildown or Exponential.Euclid")}
+        CorModels <- space_method[[2]]
+      }
+      if(length(space_method) == 1){
+        CorModels <- "Exponential.tailup"
+        message('Using an Exponential.tailup model...')
+      }
+
+    }
+    if(space_method[[1]] == 'no_ssn'){
+      message('No SSN object defined')
+      ssn_object <- FALSE
+      if(space_method[[2]] %in% c("Exponential.Euclid") == FALSE) {stop("Need to specify Exponential.Euclid")}
+      # when using Euclidean distance, need to specify the columns with lon and lat.
+      if(length(space_method) < 3){ stop("Please, specify the columns in the data frame with the longitude and latitude (c('lon', 'lat'))") }
+
+      data$lon <- data[,names(data) == space_method[[3]][1]]
+      data$lat <- data[,names(data) == space_method[[3]][2]]
+      CorModels <- space_method[[2]]
+    }
+
+
+  }
+
+  if(missing(space_method)) {space_method <- 'no_ssn'; ssn_object <- FALSE; CorModels <- "Exponential.Euclid" }# if missing use Euclidean distance
+
+
+
+
+  # Cov
+  cor_tu <- case_when(CorModels == "Exponential.tailup" ~ 1,
+                      CorModels == "LinearSill.tailup" ~ 2,
+                      CorModels == "Spherical.tailup" ~ 3,
+                      TRUE ~ 5)
+  cor_tu <- sort(cor_tu)[1]
+
+  cor_td <- case_when(CorModels == "Exponential.taildown" ~ 1,
+                      CorModels == "LinearSill.taildown" ~ 2,
+                      CorModels == "Spherical.taildown" ~ 3,
+                      TRUE ~ 5)
+  cor_td <- sort(cor_td)[1]
+
+
+  cor_ed <- case_when(CorModels == "Exponential.Euclid" ~ 1,
+                      TRUE ~ 5)
+  #CorModels == "Spherical.Euclid" ~ 2, #NB: to be implemented
+  #CorModels == "Gaussian.Euclid" ~ 3)
+  cor_ed <- sort(cor_ed)[1]
+
+  cor_re <- case_when(CorModels == "RE1" ~ 1,
+                      TRUE ~ 5)
+  cor_re <- sort(cor_re)[1]
+
+
+  data_initial <- 'data {
+      int<lower=1> N;
+      int<lower=1> K;
+      int<lower=1> T;
+      matrix[N,K] X[T] ; // real X[N,K,T]; //
+
+      //int<lower = 0> N_y_obs; // number observed values
+      //int<lower = 0> N_y_mis; // number missing values
+
+      //int<lower = 1> i_y_obs[N_y_obs] ;  //[N_y_obs,T]
+      //int<lower = 1> i_y_mis[N_y_mis] ;  // N_y_mis,T]
+
+      matrix[N, N] W ; // spatial weights
+      matrix[N, N] h ; // total hydrological dist
+      matrix[N, N] I ; // diag matrix
+
+      matrix[N, N] D ; // downstream hydrological dist matrix
+      matrix[N, N] flow_con_mat; // flow conected matrix
+
+      matrix[N, N] e ; // Euclidean dist mat
+      real<lower=1> alpha_max ;
+      '
+
+
+  if (family == "gaussian"){
+    data_com <- paste0(data_initial,
+                       '
+                       vector[N*T] y_obs;
+                        }'
+    )
+  }else if (family == "poisson") {
+    data_com <- paste0(data_initial,
+                       '
+                        int<lower=0> y_obs[N*T];
+                        }'
+    )
+  }else{
+    data_com <- paste0(data_initial,
+                       '
+                       int<lower=0, upper=1> y_obs[N*T];
+                       }
+                       '
+    )
+  }
+
+
+  tdata_com <- paste0(
+    '
+    transformed data {
+      vector[N] y_vec[T];
+
+      for(t in 1:T){
+        y_vec[t] = to_vector(y_obs[((t - 1) * N + 1):(t * N)]);
+      }
+    }
+
+    '
+  )
+
+
+  param_com <- '
+    parameters {
+      vector[K] beta;
+      real<lower=0> sigma_nug;
+
+      vector[N] eta;
+
+      //vector[N] y_mis;//declaring the missing y
+    '
+
+
+  param_phi_ar <- '
+    real <lower=-1, upper = 1> phi; // NB
+  '
+  param_phi_var <- '
+    vector<lower=-1, upper = 1> [T] phi  ; // vector of autoregresion pars
+  '
+
+
+
+  param_tu <- '
+    real<lower=0> sigma_tu;
+    real<lower=0, upper=alpha_max> alpha_tu;
+    '
+
+  param_td <- '
+    real<lower=0> sigma_td; // sd of tail-down
+    real<lower=0, upper=alpha_max> alpha_td; // range of the tail-down model
+    '
+
+  param_ed <- '
+    real<lower=0> sigma_ed;
+    real<lower=0, upper=alpha_max> alpha_ed; // range of the Euclidean dist model
+    '
+
+  param_re <- '
+    real<lower=0> sigma_RE1;
+    '
+
+
+  tparam_com <- '
+    transformed parameters {
+
+      vector[N] epsilon[T]; // error term
+      vector[N] mu[T]; // mean
+      real<lower=0> var_nug; // nugget
+
+       matrix[N, N] C_tu; //tail-up cov
+       matrix[N, N] C1; //tail-up cov
+       matrix[N, N] Ind; //tail-up indicator
+
+       matrix[N, N] C_td; //tail-down cov
+       matrix[N, N] Ind2; //tail-down indicator
+       matrix[2,1] iji;
+
+       matrix[N, N] C_ed ;// Euclidean cov
+
+       matrix[N, N] C_re ;// random effect cov
+       matrix[N, N] RE1; // random effect 1
+
+     '
+
+  tparam_tu <- '
+    // tail up exponential
+    real<lower=0> var_tu; // parsil tail-down
+    '
+
+  tparam_td <- '
+    real<lower=0> var_td; // parsil tail-down
+    '
+
+  tparam_ed <- '
+    real<lower=0> var_ed; //  Euclidean dist var
+    '
+
+  tparam_re <- '
+    real<lower=0> var_RE1; // Random effect 1
+    '
+
+
+  tparam_com2 <- '
+
+    var_nug = sigma_nug ^ 2; // variance nugget
+    mu[1] = X[1] * beta;
+    epsilon[1] = y_vec[1] - mu[1];
+    '
+
+  tparam_com_ar <- '
+    for (t in 2:T){
+      mu[t] = X[t] * beta;
+      epsilon[t] = y_vec[t] - mu[t];
+      mu[t] = mu[t] + phi * epsilon[t-1];
+    }
+    '
+
+  tparam_com_var <- '
+    for (t in 2:T){
+      mu[t] = X[t] * beta;
+      epsilon[t] = y_vec[t] - mu[t];
+      mu[t] = mu[t] + phi .* epsilon[t-1]; // element wise mult two vectors
+    }
+    '
+
+
+  tparam_tu2_exp <- '
+    // tail up exponential
+    var_tu = sigma_tu ^ 2; // variance tail-up
+    C1 = var_tu * exp(- 3 * h / alpha_tu); // tail up exponential model
+    C_tu = C1 .* W; // Hadamard (element-wise) product
+    '
+
+  tparam_tu2_lin <- '
+    //Tail-up linear-with-sill model
+    var_tu = sigma_tu ^ 2; // variance tail-up
+    for (i in 1:N) {
+      for (j in 1:N) {
+        Ind[i,j] = (h[i,j] / alpha_tu) <= 1 ? 1 : 0; // indicator
+      }
+    }
+    C1 = var_tu * (1 - (h / alpha_tu)) .* Ind ; //Tail-up linear-with-sill model
+    C_tu = C1 .* W; // Hadamard (element-wise) product
+    '
+
+  tparam_tu2_sph <- '
+    // Tail-up spherical model
+    var_tu = sigma_tu ^ 2; // variance tail-up
+    for (i in 1:N) {// Tail-up spherical model
+      for (j in 1:N) {
+        Ind[i,j] = (h[i,j] / alpha_tu) <= 1 ? 1 : 0; // indicator
+      }
+    }
+    C1 = var_tu * (1 - (1.5 * h / alpha_tu) + (h .* h .* h / (2 * alpha_tu ^ 3))) .* Ind ; // Tail-up spherical model
+    C_tu = C1 .* W; // Hadamard (element-wise) product
+  '
+  #tail-up models end
+
+
+  #tail-down models start
+
+  # tail-down exponential
+  tparam_td2_exp <- '
+    var_td= sigma_td ^ 2; // variance tail-down
+     	for (i in 1:N) {// Tail-down exponential model
+          for (j in 1:N) {
+            if(flow_con_mat[i,j] == 1){ // if points are flow connected
+               C_td[i,j] = var_td * exp(- 3 * h[i,j] / alpha_td);
+            }
+            else{// if points are flow unconnected
+              C_td[i,j] = var_td * exp(- 3 * (D[i,j] + D[j,i]) / alpha_td);
+            }
+          }
+        }
+
+'
+
+  #Tail-down linear-with-sill model
+  tparam_td2_lin <- '
+    var_td= sigma_td ^ 2; // variance tail-down
+        for (i in 1:N) {// Tail-down linear-with-sill model
+          for (j in 1:N) {
+            if(flow_con_mat[i,j] == 1){ // if points are flow connected
+              Ind2[i,j] = (h[i,j] / alpha_td) <= 1 ? 1 : 0; // indicator
+              C_td[i,j] = var_td * (1 - (h[i,j] / alpha_td)) .* Ind2[i,j] ; //Tail-up linear-with-sill model
+            }
+            else{// if points are flow unconnected
+              iji[1,1] = D[i,j];
+              iji [2,1] = D[j,i];
+              Ind2[i,j] = (max(iji) / alpha_td) <= 1 ? 1 : 0; // indicator
+              C_td[i,j] = var_td * (1 - (max(iji) / alpha_td)) * Ind2[i,j] ;
+            }
+          }
+        }
+
+  '
+
+  #tail-down spherical model
+  tparam_td2_sph <- '
+    var_td= sigma_td ^ 2; // variance tail-down
+        for (i in 1:N) {// tail-down spherical model
+          for (j in 1:N) {
+            if(flow_con_mat[i,j] == 1){ // if points are flow connected
+              Ind2[i,j] = (h[i,j] / alpha_td) <= 1 ? 1 : 0; // indicator
+              C_td[i,j] = var_td * (1 - (1.5 * h[i,j] / alpha_td) + ( (h[i,j] ^ 3) / (2 * alpha_td ^ 3))) * Ind2[i,j];
+            }
+            else{// if points are flow unconnected
+              iji[1,1] = D[i,j];
+              iji [2,1] = D[j,i];
+              Ind2[i,j] = (max(iji) / alpha_td) <= 1 ? 1 : 0; // indicator
+              C_td[i,j] = var_td * (1 - (1.5 * min(iji) / alpha_td) + ( max(iji)/(2 * alpha_td)   )) * (1 - (max(iji) / alpha_td) ) ^ 2 * Ind2[i,j];
+            }
+          }
+        }
+
+'
+
+  #tail-down models end
+
+
+  tparam_ed2 <- '
+	  //Euclidean distance models start
+    var_ed = sigma_ed ^ 2; // var Euclidean dist
+      C_ed = var_ed * exp(- 3 * e / alpha_ed); // exponential model
+    //Euclidean distance models end
+   '
+
+  tparam_re2 <- '
+    // random effect
+    var_RE1 = sigma_RE1 ^ 2;
+      C_re = var_RE1 * RE1;
+
+    '
+
+  tparam_chol <- paste0(
+    if(family == "gaussian"){
+      '
+      matrix[N, N] L_chol = cholesky_decompose(C_tu + C_td + C_re + C_ed);
+      '
+    }else{
+      '
+      matrix[N, N] L_chol = cholesky_decompose(C_tu + C_td + C_re + C_ed + var_nug * I);
+      '
+    },
+    # if(family == "gaussian"){
+    #   '
+    #   matrix[N, N] L_chol = cholesky_decompose(C_tu + C_td + C_re + C_ed);
+    #   '
+    # }else{
+    #   '
+    #   matrix[N, N] L_chol = cholesky_decompose(C_td + var_nug * I);
+    #   '
+    # },
+
+    '
+    vector[N] gp_function = L_chol * eta;
+
+    vector[N*T] mu2; // a vector of length N * T
+
+    for (i in 1:T) {
+      mu2[((i - 1) * N + 1):(i * N)] = mu[i] + gp_function;
+    }
+
+  '
+  )
+
+  if(family == "gaussian"){
+    target <- 'normal(mu2[t], var_nug);'
+  }else if (family == "poisson"){
+    target <- 'poisson_log(mu2[t]);'
+  }else{
+    target <- 'bernoulli_logit(mu2[t]);'
+  }
+
+  model_com <- paste0(
+    '
+  model {
+    for (t in 1:N*T){
+      y_obs[t] ~ ', target, '
+    }
+    // Multiplier for non-centred GP parameterisation
+    eta ~ std_normal();
+
+    sigma_nug ~ uniform(0,50); // cauchy(0,1) prior nugget effect
+    phi ~ uniform(-1, 1); // or can use phi ~ normal(0.5,0.3); //NB informative
+  '
+  )
+
+  model_tu <- '
+    sigma_tu ~ uniform(0,100);  // or cauchy(0,2) prior sd  tail-up model
+    alpha_tu ~ uniform(0, alpha_max);
+    '
+
+  model_td <- '
+    sigma_td ~ uniform(0,100); // sd tail-down
+    alpha_td ~ uniform(0, alpha_max);
+    '
+
+  model_ed <- '
+    sigma_ed ~ uniform(0,100); // sd Euclidean dist
+    alpha_ed ~ uniform(0, alpha_max); // Euclidean dist range
+    '
+
+  model_re <- '
+    sigma_RE1 ~ uniform(0,5);
+    '
+
+  if(loglik == TRUE){
+    loglik_code <- paste0(
+      '
+    vector[N*T] log_lik;
+
+    for (t in 1:N*T){
+      log_lik[t] = ', target, '
+    }'
+    )
+  }else{
+    loglik_code = ''
+  }
+
+  if(family == "gaussian"){
+    target_fitted_vals <- 'normal_rng(mu2[t], var_nug);'
+  }else if (family == "poisson"){
+    target_fitted_vals <- 'poisson_log_rng(mu2[t]);'
+  }else{
+    target_fitted_vals <- 'bernoulli_logit_rng(mu2[t]);'
+  }
+
+  gen_quant <- paste0(
+    '
+    generated quantities {',
+    loglik_code,'
+      vector[N*T] fitted_values;
+
+      for (t in 1:N*T) {
+        fitted_values[t] = ', target_fitted_vals,'
+      }
+     }
+    '
+  )
+
+  ssn_ar <- paste(
+    data_com,
+
+    tdata_com,
+
+    param_com,
+
+    if(cor_tu %in% 1:3) param_tu,
+    if(cor_td %in% 1:3) param_td,
+    if(cor_ed %in% 1:3) param_ed,
+    if(cor_re %in% 1:3) param_re,
+
+    if(time_method[[1]] == 'ar') param_phi_ar,
+    if(time_method[[1]] == 'var') param_phi_var,
+
+    '}',
+
+    tparam_com,
+    if(cor_tu %in% 1:3) tparam_tu,
+    if(cor_td %in% 1:3) tparam_td,
+    if(cor_ed %in% 1:3) tparam_ed,
+    if(cor_re %in% 1:3) tparam_re,
+    tparam_com2,
+
+
+    if(time_method[[1]] == 'ar') tparam_com_ar,
+    if(time_method[[1]] == 'var') tparam_com_var,
+
+
+
+    case_when(cor_tu == 1 ~ tparam_tu2_exp,
+              cor_tu == 2 ~ tparam_tu2_lin,
+              cor_tu == 3 ~ tparam_tu2_sph,
+              cor_tu >= 4 | cor_tu <= 0 ~ 'C_tu = rep_matrix(0, N, N);'),
+
+
+    case_when(cor_td == 1 ~ tparam_td2_exp,
+              cor_td == 2 ~ tparam_td2_lin,
+              cor_td == 3 ~ tparam_td2_sph,
+              cor_td >= 4 | cor_td <= 0 ~ 'C_td = rep_matrix(0, N, N);'),
+
+    case_when(cor_ed == 1 ~ tparam_ed2,
+              cor_ed >= 2 | cor_ed <= 0 ~ 'C_ed = rep_matrix(0, N, N);'),
+
+    case_when(cor_re == 1 ~ tparam_re2,
+              cor_re >= 2 | cor_re <= 0 ~ 'C_re = rep_matrix(0, N, N);'),
+
+    tparam_chol,
+
+    '}',
+    model_com,
+    if(cor_tu %in% 1:3)model_tu,
+    if(cor_td %in% 1:3)model_td,
+    if(cor_ed %in% 1:3)model_ed,
+    if(cor_re %in% 1:3)model_re,
+    '}',
+
+    gen_quant
+  )
+
+  `%notin%` <- Negate(`%in%`)
+
+  pars <- c(
+    case_when(cor_tu %in% 1:3 ~ c('var_tu', 'alpha_tu'),
+              cor_tu %notin% 1:3 ~ ""),
+
+    case_when(cor_td %in% 1:3 ~ c('var_td', 'alpha_td'),
+              cor_td %notin% 1:3 ~ ""),
+
+    case_when(cor_ed %in% 1:3 ~ c('var_ed', 'alpha_ed'),
+              cor_ed %notin% 1:3 ~ ""),
+
+    case_when(cor_re %in% 1:3 ~ c('var_re', 'alpha_re'),
+              cor_re %notin% 1:3 ~ ""),
+
+    if(loglik == TRUE) 'log_lik',
+
+    'var_nug',
+    'beta',
+    'phi',
+    'fitted_values',
+    'eta'
+  )
+
+  pars <- pars[pars != '']
+
+
+  # data part
+  old <- options()        # old options
+  on.exit(options(old)) 	# reset once exit the function
+
+  options(na.action='na.pass') # to preserve the NAs
+
+  out_list <- mylm(formula = formula, data = data) # produces the design matrix
+
+  if (anyNA(out_list$y)){
+
+    if(interactive()){
+      toImpute = readline(prompt = "There is data missing in your response variable. Do you want to impute? [Y/n]") %>%
+        tolower()
+      warning("Please read function documentation for imputation assumptions\n")
+
+      while(toImpute %notin% c('y', 'n')){
+        toImpute = readline(prompt = "Please enter either 'Y' or 'n'") %>%
+          tolower()
+        if(toImpute == ''){message("Function exited");invokeRestart("abort")}
+      }
+
+      if(toImpute == 'n'){
+        stop("Please supply data with non-missing response values")
+      }
+    }
+
+    # # Impute missing data
+    # require(mtsdi)
+
+    message("Imputing missing data ...")
+
+    data_impute <- mtsdi::mnimput(
+      formula = formula,
+      dataset = data,
+      eps = 1e-3,
+      ts = FALSE,
+      method = "glm"
+    )$filled.dataset
+
+    # Extract the response variable name from the formula
+    response_var <- formula[[2]]
+
+    # Ensure for pois, data is still discrete
+    if(family == "poisson"){
+      data_impute[[response_var]] <- round(data_impute[[response_var]], 0)
+    }
+
+    if(family == "binomial"){
+      data_impute[[response_var]] <- ifelse(data_impute[[response_var]] > 0.5,
+                                            yes = 1,
+                                            no = 0)
+    }
+
+    # Redefine the out_list object
+    out_list <- mylm(formula = formula, data = data_impute) # produces the design matrix
+  }
+
+
+  response <- out_list$y # response variable
+
+
+
+  design_matrix <- out_list$X # design matrix
+
+  obs_data <- data
+
+  ndays <- length(unique(obs_data[, names(obs_data) %in% time_points] ))
+
+
+  N <- nrow(obs_data)/ndays #nobs
+
+
+  nobs <- nrow(obs_data)/ndays #nobs
+
+  obs_data$date_num <- as.numeric(factor(obs_data[, names(obs_data) %in% time_points]	))
+
+  resp_var_name <- gsub("[^[:alnum:]]", " ", formula[2])
+  obs_data$y <- obs_data[,names(obs_data) %in% resp_var_name]
+
+
+  # array structure
+  X <- design_matrix #cbind(1,obs_data[, c("X1", "X2", "X3")]) # design matrix
+
+  # NB: this array order is Stan specific
+  Xarray <- aperm(array( c(X), dim=c(N, ndays, ncol(X)) ),c(2, 1, 3))
+
+  y_obs <- response #[!is.na(response)]
+  #
+  #
+  # Y <- matrix(nrow = N, ncol = T)
+  #
+  # # Loop through each t from 1 to T
+  # for (t in 1:T) {
+  #   # Extract the segment of y corresponding to Y[t] and assign it to the t-th column of Y
+  #   Y[, t] <- y_obs[((t - 1) * N + 1):(t * N)]
+  # }
+
+  # # index for observed values
+  # i_y_obs <- obs_data[!is.na(obs_data$y),]$pid
+  #
+  # # index for missing values
+  # i_y_mis <- obs_data[is.na(obs_data$y),]$pid
+
+  if(ssn_object == TRUE){ # the ssn object exist?
+    mat_all <- dist_weight_mat(path = path, net = net, addfunccol = addfunccol)
+  }
+
+  if(ssn_object == FALSE){ # the ssn object does not exist- purely spatial
+
+    first_date <- unique(obs_data[, names(obs_data) %in% time_points])[1]
+
+    di <- dist(obs_data[obs_data$date == first_date, c('lon', 'lat')], #data$date == 1
+               method = "euclidean",
+               diag = FALSE,
+               upper = FALSE) %>% as.matrix()
+    mat_all <-  list(e = di, D = di, H = di, w.matrix = di, flow.con.mat = di)
+  }
+
+
+  data_list <- list(N = N, # obs + preds  points
+                    T = ndays, # time points
+                    K = ncol(X),  # ncol of design matrix
+                    y_obs = y_obs,# y values in the obs df
+
+                    # N_y_obs = length(i_y_obs),  #nrow(i_y_obs) numb obs points
+                    # N_y_mis = length(i_y_mis), #nrow(i_y_mis) numb preds points
+                    #
+                    # i_y_obs = i_y_obs, # index of obs points
+                    # i_y_mis = i_y_mis, # index of preds points
+
+                    X = Xarray, # design matrix
+                    mat_all = mat_all,
+                    alpha_max = 4 * max(mat_all$H) ) # a list with all the distance/weights matrices
+
+
+
+  data_list$e = data_list$mat_all$e #Euclidean dist
+  #for tail-up
+  data_list$h = data_list$mat_all$H # total stream distance
+  data_list$W = data_list$mat_all$w.matrix # spatial weights
+
+  #for tail-down
+  data_list$flow_con_mat = data_list$mat_all$flow.con.mat #flow connected matrix
+  data_list$D = data_list$mat_all$D #downstream hydro distance matrix
+
+  #RE1 = RE1mm # random effect matrix
+
+  data_list$I = diag(1, nrow(data_list$W), nrow(data_list$W))  # diagonal matrix
+
+  if(family %in% c("poisson", "binomial")){
+    ini = 0
+  }else{
+    ini <- function(){list(var_nug =  .1)}
+  }
+
+
+
+  message("Compiling model ...")
+
+  compiled_model <- rstan::stan_model(
+    model_code = ssn_ar,
+    model_name = "ssn_ar"
+  )
+
+  message("Sampling model ...")
+
+  fit <- rstan::sampling(object = compiled_model,
+                         data = data_list,
+                         pars = pars,
+                         iter = iter,
+                         warmup = warmup,
+                         init = ini,
+                         chains = chains,
+                         cores = cores,
+                         verbose = FALSE,
+                         seed = seed,
+                         refresh = refresh)
+
+  attributes(fit)$formula <- formula
+
+  class(fit) <- 'ssnbayes'
+
+  return(fit)
+}
+
+
 
 
 
@@ -1264,16 +2087,16 @@ krig <- function(object = object,
 
 
 pred_ssnbayes <- function(
-  object = object,
-  path = path,
-  obs_data = obs_data,
-  pred_data = pred_data,
-  net = 1,
-  nsamples = 100, # number of samples to use from the posterior in the stanfit object
-  addfunccol = 'afvArea', # variable used for spatial weights
-  locID_pred = locID_pred, # location ID of the points to predict
-  chunk_size = chunk_size,
-  seed = seed
+    object = object,
+    path = path,
+    obs_data = obs_data,
+    pred_data = pred_data,
+    net = 1,
+    nsamples = 100, # number of samples to use from the posterior in the stanfit object
+    addfunccol = 'afvArea', # variable used for spatial weights
+    locID_pred = locID_pred, # location ID of the points to predict
+    chunk_size = chunk_size,
+    seed = seed
 ){
   stanfit <- object
   class(object) <- 'stanfit'
@@ -1283,8 +2106,8 @@ pred_ssnbayes <- function(
 
 
   mat_all_preds <- dist_weight_mat_preds(path = path,
-                                      net = net,
-                                      addfunccol = addfunccol)
+                                         net = net,
+                                         addfunccol = addfunccol)
 
   # the row and col names is not conseq
   rownames(mat_all_preds$e) <- 1:(nrow(mat_all_preds$e))
