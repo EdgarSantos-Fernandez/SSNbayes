@@ -17,6 +17,7 @@ ssnbayes(
   net = 1,
   addfunccol = addfunccol,
   loglik = FALSE,
+  ppd = FALSE,
   seed = seed
 )
 }
@@ -45,6 +46,8 @@ The order in this data.fame MUST be: spatial locations (1 to S) at time t=1, the
 \item{addfunccol}{Variable to compute the additive function. Used to compute the spatial weights.}
 
 \item{loglik}{Logic parameter denoting if the loglik will be computed by the model.}
+
+\item{ppd}{Produce the posterior predictive distribution}
 
 \item{seed}{(optional) A seed for reproducibility}
 }

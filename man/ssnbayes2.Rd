@@ -2,13 +2,14 @@
 % Please edit documentation in R/all_func.R
 \name{ssnbayes2}
 \alias{ssnbayes2}
-\title{Fits a mixed linear regression model using Stan}
+\title{Fits a mixed linear regression model using Stan. This is an updated version of ssnbayes()}
 \usage{
 ssnbayes2(
   formula = formula,
   family = family,
   data = data,
-  path = path,
+  osm_ssn = osm_ssn,
+  path = NA,
   time_method = time_method,
   space_method = space_method,
   iter = 3000,
@@ -16,8 +17,8 @@ ssnbayes2(
   chains = 3,
   cores = 3,
   refresh = max(iter/100, 1),
-  net = 1,
-  addfunccol = addfunccol,
+  net = NA,
+  addfunccol = NA,
   loglik = FALSE,
   seed = seed
 )
@@ -30,11 +31,13 @@ ssnbayes2(
 \item{data}{A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.
 The order in this data.fame MUST be: spatial locations (1 to S) at time t=1, then locations (1 to S) at t=2 and so on.}
 
-\item{path}{Path with the name of the SpatialStreamNetwork object}
+\item{osm_ssn}{An `osm_ssn` generated using `generate_osm_ssn()`.}
 
-\item{time_method}{A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.}
+\item{path}{File path with the name of the SpatialStreamNetwork object}
 
-\item{space_method}{A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a list with the lon and lat for Euclidean distance models.}
+\item{time_method}{A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and column in the data with the time variable.}
+
+\item{space_method}{A list, first element must be one of 'use_ssn', 'use_osm_ssn', 'no_ssn. Whether to use SSN or osm ssn, and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a list with the lon and lat for Euclidean distance models.}
 
 \item{iter}{Number of iterations}
 
@@ -68,8 +71,7 @@ Missing values are allowed in the response and in the covariates.
 Missing values are imputed using the `mtsdi` pacakge, with a `glm` family.
 }
 \details{
-Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html.
-Missing values on the response variable can be imputed by default using mtsdi::mnimput(). We strongly recommend the documentation for this function be read before use.
+Missing values on the covariates and response can be imputed by default using mtsdi::mnimput(). We strongly recommend the documentation for this function be read before use.
 The pid in the data has to be consecutive from 1 to the number of observations.
 Users can use the SpatialStreamNetwork created with the SSN package. This will provide the spatial stream information used to compute covariance matrices. If that is the case, the data has
 to have point ids (pid) matching the ones in SSN distance matrices, so that a mapping can occur.
@@ -77,26 +79,48 @@ to have point ids (pid) matching the ones in SSN distance matrices, so that a ma
 \examples{
 \dontrun{
 #options(mc.cores = parallel::detectCores())
-# Import SpatialStreamNetwork object
-#path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
-#n <- importSSN(path, predpts = "preds", o.write = TRUE)
-#family <-  "gaussian"
+#require(SSNdata)
+#formula = temp ~ SLOPE + elev + h2o_area + air_temp + sin + cos
 ## Imports a data.frame containing observations and covariates
-#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNbayes"))
-#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + h2o_area + air_temp + sin + cos,
-#                   data = clear,
-#                   path = path,
-#                   family = family,
-#                   time_method = list("ar", "date"),
-#                   space_method = list('use_ssn', c("Exponential.taildown")),
-#                   iter = 2000,
-#                   warmup = 1000,
-#                   chains = 3,
-#                   cores = 3,
-#                   net = 2, # second network on the ssn object
-#                   addfunccol='afvArea')
-#space_method options examples
-#use list('no_ssn', 'Exponential.Euclid', c('lon', 'lat')) if no ssn object is available
+#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNdata"))
+#family <-  "gaussian"
+
+# # If using osm_ssn:
+# # Generate osm_ssn
+# clear_osm_ssn <- generate_osm_ssn(clear, "long", "lat", root_loc = 12, plot_network = TRUE)
+# fit_ar <- ssnbayes2(formula,
+#                     data = clear,
+#                     osm_ssn = clear_osm_ssn,
+#                     family = family,
+#                     time_method = list("ar", "date"),
+#                     space_method = list('use_osm_ssn', c("Exponential.taildown")),
+#                     iter = 2000,
+#                     warmup = 1000,
+#                     chains = 3,
+#                     cores = 3)
+#
+#
+#
+# If not using osm_ssn, and instead using SSN:
+# Import SpatialStreamNetwork object
+# path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
+# fit_ar <- ssnbayes2(formula = formula,
+#                     data = clear,
+#                     path = path,
+#                     family = family,
+#                     time_method = list("ar", "date"),
+#                     space_method = list('use_ssn', c("Exponential.taildown")),
+#                     iter = 2000,
+#                     warmup = 1000,
+#                     chains = 3,
+#                     cores = 3,
+#                     net = 2, # second network on the ssn object
+#                     addfunccol='afvArea')
+#
+#
+#
+# #space_method options examples
+# #use list('no_ssn', 'Exponential.Euclid', c('lon', 'lat')) if no ssn object is available
 }
 }
 \author{

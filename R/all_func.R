@@ -38,7 +38,7 @@ collapse <- function(ssn, par = 'afvArea'){
 
     df$line_id <- as.numeric(as.character(df$slot))
     df_all<- rbind(df, df_all)
-  }
+    }
   df_all <-  dplyr::arrange(df_all, line_id)
   #df_all$slot <- NULL
   names(df_all)[names(df_all) == 'computed_afv'] <- par
@@ -313,34 +313,6 @@ mylm <- function(formula, data) {
   return(list(y = y, X = X))
 }
 
-#' A simple modeling function using a formula and data
-#'
-#' @param formula A formula as in lm()
-#' @param data A data.frame containing the elements specified in the formula
-#' @return A list of matrices
-#' @importFrom stats model.matrix model.response
-#' @export
-#' @author Jay ver Hoef
-#' @examples
-#' options(na.action='na.pass')
-#' data("iris")
-#' out_list = mylm(formula = Petal.Length ~ Sepal.Length + Sepal.Width, data = iris)
-
-
-mylm <- function(formula, data) {
-  # get response as a vector
-  mf <- match.call(expand.dots = FALSE)
-  m <- match(c("formula", "data"), names(mf), 0L)
-  mf <- mf[c(1L, m)]
-  mf$drop.unused.levels <- TRUE
-  mf[[1L]] <- as.name("model.frame")
-  mf <- eval(mf, parent.frame())
-  y <- as.vector(model.response(mf, "numeric"))
-  # create design matrix
-  X <- model.matrix(formula, data)
-  # return a list of response vector and design matrix
-  return(list(y = y, X = X))
-}
 
 
 
@@ -366,6 +338,7 @@ mylm <- function(formula, data) {
 #' @param net The network id (optional). Used when the SSN object contains multiple networks.
 #' @param addfunccol Variable to compute the additive function. Used to compute the spatial weights.
 #' @param loglik Logic parameter denoting if the loglik will be computed by the model.
+#' @param ppd Produce the posterior predictive distribution
 #' @param seed (optional) A seed for reproducibility
 #' @return A list with the model fit
 #' @details Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html
@@ -414,6 +387,7 @@ ssnbayes <- function(formula = formula,
                      net = 1,
                      addfunccol = addfunccol,
                      loglik = FALSE,
+                     ppd = FALSE,
                      seed = seed
 ){
 
@@ -469,7 +443,7 @@ ssnbayes <- function(formula = formula,
 
   if(missing(space_method)) {space_method <- 'no_ssn'; ssn_object <- FALSE; CorModels <- "Exponential.Euclid" }# if missing use Euclidean distance
 
-
+ # if(loglik == T & ppd == T) {stop("Need to specify either loglik = T or ppd = T; or both = F ")}
 
 
   # Cov
@@ -774,7 +748,7 @@ ssnbayes <- function(formula = formula,
     sigma_RE1 ~ uniform(0,5);
 '
 
-  gen_quant <- '
+  gen_quant_ll <- '
   generated quantities {
    vector[T] log_lik;
      for (t in 1:T){
@@ -783,6 +757,16 @@ ssnbayes <- function(formula = formula,
       }
   }
   '
+
+  gen_quant_ppd <- '
+  generated quantities {
+   vector[N] y_pred[T];
+     for (t in 1:T){
+     y_pred[t] = multi_normal_cholesky_rng( mu[t], cholesky_decompose(C_tu + C_td + C_re + C_ed + var_nug * I + 1e-6) );
+      }
+  }
+  '
+
 
   ssn_ar <- paste(
     data_com,
@@ -837,7 +821,8 @@ ssnbayes <- function(formula = formula,
     if(cor_re %in% 1:3) model_re,
     '}',
 
-    if(loglik == TRUE) gen_quant
+    if(loglik == TRUE) gen_quant_ll,
+    if(ppd == TRUE) gen_quant_ppd
   )
 
   `%notin%` <- Negate(`%in%`)
@@ -856,6 +841,7 @@ ssnbayes <- function(formula = formula,
               cor_re %notin% 1:3 ~ ""),
 
     if(loglik == TRUE) 'log_lik',
+    if(ppd == TRUE) 'y_pred',
 
     'var_nug',
     'beta',
@@ -894,7 +880,7 @@ ssnbayes <- function(formula = formula,
   # array structure
   X <- design_matrix #cbind(1,obs_data[, c("X1", "X2", "X3")]) # design matrix
 
-  # NB: this array order is Stan specific
+    # NB: this array order is Stan specific
   Xarray <- aperm(array( c(X), dim=c(N, ndays, ncol(X)) ),c(2, 1, 3))
 
   y_obs <- response[!is.na(response)]
@@ -971,7 +957,674 @@ ssnbayes <- function(formula = formula,
   fit
 }
 
-#' Fits a mixed linear regression model using Stan
+
+
+
+
+#' Performs spatio-temporal prediction in R using an ssnbayes object from a fitted model.
+#'
+#' It will take an observed and a prediction data frame.
+#' It requires the same number of observation/locations per day.
+#' It requires location id (locID) and points id (pid).
+#' The locID are unique for each site.
+#' The pid is unique for each observation.
+#' Missing values are allowed in the response but not in the covariates.
+#'
+#' @param object A stanfit object returned from ssnbayes
+#' @param ... Other parameters
+#' @param path Path with the name of the SpatialStreamNetwork object
+#' @param obs_data The observed data frame
+#' @param pred_data The predicted data frame
+#' @param net (optional) Network from the SSN object
+#' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
+#' @param addfunccol The variable used for spatial weights
+#' @param chunk_size (optional) the number of locID to make prediction from
+#' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
+#' @param seed (optional) A seed for reproducibility
+#' @return A data frame with the location (locID), time point (date), plus the MCMC draws from the posterior from 1 to the number of iterations.
+#' The locID0 column is an internal consecutive location ID (locID) produced in the predictions, starting at max(locID(observed data)) + 1. It is used internally in the way predictions are made in chunks.
+#' @details The returned data frame is melted to produce a long dataset. See examples.
+#' Currently, the predict() function produces predictions for normal random variables. However, this can be easily transformed in to counts (Poisson distributed) and presence/absence (binomial distributed).
+#' @export
+#' @importFrom dplyr mutate %>% distinct left_join case_when
+#' @importFrom plyr .
+#' @importFrom rstan stan
+#' @importFrom stats dist
+#' @author Edgar Santos-Fernandez
+#' @examples
+#' \donttest{
+#'#require('SSNdata')
+#'#clear_preds <- readRDS(system.file("extdata/clear_preds.RDS", package = "SSNdata"))
+#'#clear_preds$y <- NA
+#'#pred <- predict(object = fit_ar,
+#'#                 path = path,
+#'#                 obs_data = clear,
+#'#                 pred_data = clear_preds,
+#'#                 net = 2,
+#'#                 nsamples = 100, # numb of samples from the posterior
+#'#                 addfunccol = 'afvArea', # var for spatial weights
+#'#                 locID_pred = locID_pred,
+#'#                 chunk_size = 60)
+#'}
+
+predict.ssnbayes <- function(object = object,
+                             ...,
+                             path = path,
+                             obs_data = obs_data,
+                             pred_data = pred_data,
+                             net = net,
+                             nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
+                             addfunccol = addfunccol, # variable used for spatial weights
+                             locID_pred = locID_pred,
+                             chunk_size = chunk_size,
+                             seed = seed) {
+
+  stanfit <- object
+  formula <- as.formula(attributes(stanfit)$formula)
+  obs_resp <- obs_data[,gsub("\\~.*", "", formula)[2]]
+  if( any( is.na(obs_resp) )) {stop("Can't have missing values in the response in the observed data. You need to impute them before")}
+
+
+  out <- pred_ssnbayes(object = object,
+                       path = path,
+                       obs_data = obs_data,
+                       pred_data = pred_data,
+                       net = net,
+                       nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
+                       addfunccol = addfunccol, # variable used for spatial weights
+                       locID_pred = locID_pred,
+                       chunk_size = chunk_size,
+                       seed = seed)
+  out
+}
+
+
+
+
+
+
+
+#' Performs spatio-temporal prediction in R using an ssnbayes object from a fitted model.
+#'
+#' It will take an observed and a prediction data frame.
+#' It requires the same number of observation/locations per day.
+#' It requires location id (locID) and points id (pid).
+#' The locID are unique for each site.
+#' The pid is unique for each observation.
+#' Missing values are allowed in the response but not in the covariates.
+#'
+#' @param object A stanfit object returned from ssnbayes
+#' @param ... Other parameters
+#' @param use_osm_ssn Use a supplied osm_ssn instead a SpatialStreamNetwork object.
+#' @param osm_ssn The osm_ssn to be used.
+# #' @param family A description of the response distribution and link function to be used in the model. Must be one of: 'gaussian', 'binomial', 'poisson".
+#' @param path If not using an osm_ssn, path with the name of the SpatialStreamNetwork object.
+#' @param obs_data The observed data frame
+#' @param pred_data The predicted data frame
+#' @param net (optional) Network from the SSN object
+#' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
+#' @param addfunccol If not using an osm_ssn, the variable used for spatial weights
+#' @param chunk_size (optional) the number of locID to make prediction from
+#' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
+#' @param seed (optional) A seed for reproducibility
+#' @return A data frame with the location (locID), time point (date), plus the MCMC draws from the posterior from 1 to the number of iterations.
+#' The locID0 column is an internal consecutive location ID (locID) produced in the predictions, starting at max(locID(observed data)) + 1. It is used internally in the way predictions are made in chunks.
+#' @details The returned data frame is melted to produce a long dataset. See examples.
+#' @export
+#' @importFrom dplyr mutate %>% distinct left_join case_when
+#' @importFrom plyr .
+#' @importFrom rstan stan
+#' @importFrom stats dist
+#' @author Edgar Santos-Fernandez
+#' @examples
+#' \donttest{
+#'# require('SSNdata')
+#'# require('sf')
+#'#
+#'# clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNdata"))
+#'#
+#'# clear_osm_ssn <- generate_osm_ssn(clear, "long", "lat", root_loc = 12, plot_network = TRUE)
+#'#
+#'# formula = y ~ SLOPE + elev + air_temp + sin + cos
+#'#
+#'# family = "gaussian"
+#'#
+#'# # Note - missing data must be imputed before using the predict() function.
+#'# # This can be done using:
+#'# data_impute <- mtsdi::mnimput(
+#'#   formula = temp ~ SLOPE + elev + h2o_area + air_temp + sin + cos,
+#'#   dataset = clear,
+#'#   eps = 1e-3,
+#'#   ts = FALSE,
+#'#   method = "glm"
+#'# )$filled.dataset
+#'#
+#'# clear <- left_join(clear, data_impute, by = c("elev", "air_temp", "sin", "cos", "SLOPE"))
+#'#
+#'# clear$y <- clear$temp.y
+#'#
+#'# fit_ar <- ssnbayes2(formula = formula,
+#'#                     data = clear,
+#'#                     osm_ssn = clear_osm_ssn,
+#'#                     family = family,
+#'#                     time_method = list("ar", "date"),
+#'#                     space_method = list('use_osm_ssn', c("Exponential.taildown")),
+#'#                     iter = 2000,
+#'#                     warmup = 1000,
+#'#                     chains = 3,
+#'#                     cores = 3)
+#'#
+#'# # Get the coordinate reference system of the near_X and near_Y variables
+#'# data_crs <- system.file("extdata/clearwater.ssn", package = "SSNbayes") %>%
+#'#   SSN2::ssn_import(predpts = "preds", overwrite  = TRUE) %>%
+#'#   SSN2::ssn_get_data(name = "preds") %>%
+#'#   st_crs
+#'#
+#'# # Load in the predictions, and convert to 4326 CRS
+#'# clear_preds <- readRDS(system.file("extdata/clear_preds.RDS", package = "SSNbayes")) %>%
+#'#   st_as_sf(coords = c("NEAR_X","NEAR_Y"),
+#'#            crs = data_crs) %>%
+#'#   st_transform(crs = 4326)
+#'#
+#'# # Extract the long and lat columns
+#'# xy <- st_coordinates(clear_preds)
+#'#
+#'# colnames(xy) <- c("long", "lat")
+#'#
+#'# Merge back in with the prediction dataset
+#'# clear_preds <- cbind(clear_preds, xy) %>%
+#'#   data.frame() %>%
+#'#   select(-geometry)
+#'#
+#'# same_names <- intersect(names(clear), names(clear_preds))
+#'#
+#'# # Combine all observed and prediction sites into 1 dataframe
+#'# all_sites <- rbind(clear %>% select(same_names),
+#'#                    data.frame(clear_preds) %>% select(same_names)
+#'#                    )
+#'#
+#'#
+#'# clear_preds_osm_ssn <- generate_osm_ssn(sensor_data = all_sites,
+#'#                                         lon_name = "long", lat_name = "lat",
+#'#                                         root_loc = 12,
+#'#                                         plot_network = TRUE,
+#'#                                         gen_pred_sites = FALSE)
+#'#
+#'#
+#'#
+#'# locs <- clear_preds_osm_ssn$dist_mat_all$e %>% colnames
+#'#
+#'#
+#'# clear_krig <- clear %>%
+#'#   filter(locID %in% locs)
+#'#
+#'# clear_krig_preds <- clear_preds %>%
+#'#   filter(locID %in% locs)
+#'#
+#'#
+#'# preds <- predict(object = fit_ar,
+#'#                  use_osm_ssn = TRUE,
+#'#                  osm_ssn = clear_preds_osm_ssn,
+#'#                  obs_data = clear_krig,
+#'#                  pred_data = clear_krig_preds,
+#'#                  seed = seed,
+#'#                  nsamples = 25,
+#'#                  chunk_size = length(unique(clear_krig_preds$locID))
+#'#                  )
+#'#
+#'# # Condense data to posterior point estimates
+#'# ys <- reshape2::melt(preds, id.vars = c('locID0', 'locID', 'date'), value.name ='y')
+#'# ys$iter <- gsub("[^0-9.-]", "", ys$variable)
+#'# ys$variable <- NULL
+#'#
+#'# ys <- data.frame(ys) %>% dplyr::group_by(date, locID, locID0) %>%
+#'#   dplyr::summarise("sd" = sd(y, na.rm=T),
+#'#                    "y_pred" = mean(y, na.rm=T))
+#'#
+#'# ys <- dplyr::arrange(ys, locID)
+#'#'}
+
+predict.ssnbayes2 <- function(object = object,
+                              ...,
+                              use_osm_ssn = TRUE,
+                              osm_ssn = osm_ssn,
+                              # family = family,
+                              path = path,
+                              obs_data = obs_data,
+                              pred_data = pred_data,
+                              net = net,
+                              nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
+                              addfunccol = addfunccol, # variable used for spatial weights
+                              locID_pred = locID_pred,
+                              chunk_size = chunk_size,
+                              seed = seed) {
+
+  if(!use_osm_ssn & missing(path)){
+    stop("Using SSN, yet no path is supplied. Please provide a path for SSN.")
+  }
+
+  if(use_osm_ssn == TRUE & missing(osm_ssn)){
+    stop("Using osm_ssn, yet no osm_ssn is supplied. Please provide an osm_ssn.")
+  }
+
+
+  stanfit <- object
+  formula <- as.formula(attributes(stanfit)$formula)
+  obs_resp <- obs_data[,gsub("\\~.*", "", formula)[2]]
+  if( any( is.na(obs_resp) )) {stop("Can't have missing values in the response in the observed data. You need to impute them before")}
+
+  if(!use_osm_ssn){
+    out <- pred_ssnbayes(object = object,
+                         use_osm_ssn = FALSE,
+                         path = path,
+                         obs_data = obs_data,
+                         pred_data = pred_data,
+                         net = net,
+                         nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
+                         addfunccol = addfunccol, # variable used for spatial weights
+                         locID_pred = locID_pred,
+                         chunk_size = chunk_size,
+                         seed = seed)
+  }
+  else{
+    out <- pred_ssnbayes(object = object,
+                         use_osm_ssn = TRUE,
+                         osm_ssn = osm_ssn,
+                         # family = family,
+                         obs_data = obs_data,
+                         pred_data = pred_data,
+                         nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
+                         locID_pred = locID_pred,
+                         chunk_size = chunk_size,
+                         seed = seed)
+  }
+  out
+}
+
+
+
+
+
+
+#' Internal function used to perform spatio-temporal prediction in R using a stanfit object from ssnbayes()
+#'
+#' Use predict.ssnbayes() instead.
+#' It will take an observed and a prediction data frame.
+#' It requires the same number of observation/locations per day.
+#' It requires location id (locID) and points id (pid).
+#' The locID are unique for each site.
+#' The pid is unique for each observation.
+#' Missing values are allowed in the response but not in the covariates.
+#'
+#' @param object A stanfit object returned from ssnbayes
+#' @param mat_all_preds A list with the distance/weights matrices
+#' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
+#' @param start (optional) The starting location id
+#' @param chunk_size (optional) the number of locID to make prediction from
+#' @param obs_data The observed data frame
+#' @param pred_data The predicted data frame
+#' @param net (optional) Network from the SSN object
+#' @param seed (optional) A seed for reproducibility
+#' @return A data frame
+#' @export
+#' @importFrom dplyr mutate %>% distinct left_join case_when
+#' @importFrom plyr .
+#' @importFrom rstan stan
+#' @importFrom stats dist
+#' @importFrom stats as.formula
+#' @author Edgar Santos-Fernandez
+
+krig <- function(object = object,
+                 mat_all_preds = mat_all_preds,
+                 nsamples = 10,
+                 start = 1,
+                 chunk_size = 50,
+                 obs_data = obs_data,
+                 pred_data = pred_data,
+                 net = net,
+                 seed = seed){
+
+  if(missing(seed)) seed <- sample(1:1E6,1,replace=TRUE)
+  set.seed(seed)
+
+  stanfit <- object
+  formula <- as.formula(attributes(stanfit)$formula)
+
+  phi <- rstan::extract(stanfit, pars = 'phi')$phi
+
+  samples <- sample(1:nrow(phi), nsamples, replace = FALSE)
+  phi <- phi[samples]
+
+  betas <- rstan::extract(stanfit, pars = 'beta')$beta
+  betas <- betas[samples,]
+
+  var_nug <- rstan::extract(stanfit, pars = 'var_nug')$var_nug
+  var_nug <- var_nug[samples]
+
+  var_td <- rstan::extract(stanfit, pars = 'var_td')$var_td #NB
+  var_td <- var_td[samples]
+
+  alpha_td <- rstan::extract(stanfit, pars = 'alpha_td')$alpha_td #NB
+  alpha_td <- alpha_td[samples]
+
+  locID_obs <- sort(unique(obs_data$locID))
+
+  pred_data$temp <- NA
+
+  locID_pred <- sort(unique(pred_data$locID))
+
+  pred_data$locID0 <- as.numeric(factor(pred_data$locID)) # conseq locID
+  pred_data$locID0 <- pred_data$locID0 + length(locID_obs) # adding numb of locID in obs dataset
+
+  locID_pred0 <- sort(unique(pred_data$locID0))
+
+  # obs data frame. no missing in temp
+
+  locID_pred_1 <- locID_pred0[start:(start + chunk_size - 1)] # NB
+
+  pred_data_1 <- pred_data[pred_data$locID0 %in% locID_pred_1,]
+
+  N <- nrow(pred_data_1)
+
+  options(na.action='na.pass') # to preserve the NAs
+  out_list <- mylm(formula = formula, data = obs_data) # produces the design matrix
+
+  response_obs <- out_list$y # response variable
+  design_matrix_obs <- out_list$X # design matrix
+
+  out_list_pred <- mylm(formula = formula, data = pred_data_1)
+  X_pred <- as.matrix(out_list_pred$X)
+
+
+  locID_pred2 <- unique(pred_data_1$pid)
+  locID_obs2 <- sort(unique(obs_data$pid))
+
+  locIDs <- unique(obs_data$locID)
+  NlocIDs <- length( unique(obs_data$locID))
+
+  n_obs <- NlocIDs
+  n_pred <- unique(pred_data_1$locID)
+
+  X_obs2 <- design_matrix_obs
+  X_pred2 <- X_pred
+
+  Y2 <- response_obs
+
+
+  mat_all_preds_1 <- lapply(mat_all_preds,
+                            function(x){x[c(locID_obs, locID_pred_1),
+                                          c(locID_obs, locID_pred_1)  ] })
+
+
+  mat_all_preds_1 <- lapply(mat_all_preds_1, function(x){colnames(x) = (1:ncol(x));
+  rownames(x) = (1:nrow(x)); x  })
+
+
+  dim(mat_all_preds_1$H)
+
+  h <- mat_all_preds_1$H # hydro distance matrix
+  D <- mat_all_preds_1$D
+  fc <- mat_all_preds_1$flow.con.mat
+
+  total_numb_points <- length(c(locID_obs, locID_pred_1))
+
+  niter <- nsamples
+
+  # time
+
+  t <- length(unique(obs_data$date))
+
+  Ypred <- matrix(NA, (nrow(pred_data_1)/t)*t, niter)
+
+  for(k in 1:niter){
+
+    C_t <- (phi[k] ^ abs(outer(1:t,1:t,"-")))/(1-( phi[k]^2) )
+    inv_t <- solve(C_t)
+
+    C_td <- matrix(NA, total_numb_points, total_numb_points)
+    for(i in 1:total_numb_points){
+      for(j in 1:total_numb_points){
+        C_td[i,j] <- ifelse(fc[i,j] == 1,
+                            var_td[k] * exp(- 3 * h[i,j] / alpha_td[k]),
+                            var_td[k] * exp(- 3 * (D[i,j] + D[j,i]) / alpha_td[k])
+        )
+      }
+    }
+    C_td <- C_td + var_nug[k] * diag(total_numb_points)
+
+    Coo_td <- C_td[1:n_obs,1:n_obs]
+    Cop_td <- C_td[1:n_obs,(n_obs+1):(n_obs+chunk_size)]
+
+
+    # Separable covariance space-time matrix
+
+    Coo_all <- kronecker(C_t, Coo_td, FUN = "*")
+    inv_all  <- chol2inv(chol(Coo_all))
+    Cop_all <- kronecker(C_t, Cop_td, FUN = "*")
+
+    mu = X_obs2 %*% betas[k,]
+    mu_pred = X_pred2 %*% betas[k,]
+    Ypred[,k] = mu_pred + t(Cop_all) %*%
+      inv_all %*% (Y2 - mu)
+
+  }
+
+  pred_data_1$ypred_all <- apply(Ypred, 1,mean)
+
+  cbind(pred_data_1[,c('locID0','locID','date')], data.frame(Ypred))
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#' Generates an Open Street Maps Spatial Stream Network.
+#'
+#' It will take a dataframe containing sensor locations, with a coulmn `locID` denoting location IDs (can be string or numeric).
+#' Requires a root sensor location, in which all sensor locations are connected to, and flow towards.
+#'
+#' @param sensor_data A dataframe containing sensor locations and a column called `locID` denoting the location IDs.
+#' @param lon_name The column name containing the longitude of the sensor.
+#' @param lat_name The column name containing the latitude of the sensor.
+#' @param root_loc A sensor location which all water flows towards.
+#' @param plot_network A bool indicating whether to plot the network. Useful for determining potential errors. Will be saved in object.
+#' @param gen_pred_sites A bool indicating whether to generate new prediction sites.
+#' @param num_pred_sites Required if `gen_pred_sites=TRUE`. An integer indicating the number of prediction sites to generate.
+#' @return An `osm_ssn` object, containing: the graph network as an `sfnetwork`; the distance adjacency matrices; if `plot_network=TRUE`, an interactive leaflet plot, if `gen_pred_sites=TRUE`, an `sf` object containing the locations of the predictions sites.
+#' @details Assumes longitude and latitude data are in the 4326 coordinate reference system. If they are not, data will need to be converted beforehand using `st_transform()`. Predictions on sites using gen_pred_sites is under development specially for tail-down models.
+#' @export
+#' @importFrom dplyr %>% filter left_join
+#' @importFrom sfnetworks activate
+#' @importFrom sf st_as_sf st_coordinates st_as_sfc
+#' @importFrom leaflet leaflet addPolylines addTiles addMarkers addCircleMarkers addAwesomeMarkers makeAwesomeIcon
+#' @author Sean Francis
+#' @examples
+#' \donttest{
+#'# require('SSNdata')
+#'# clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNdata"))
+#'#
+#'# # Generate osm ssn
+#'# clear_osm_ssn <- generate_osm_ssn(clear,
+#'#                                   "long", "lat",
+#'#                                   root_loc = 12,
+#'#                                   plot_network = TRUE,
+#'#                                   gen_pred_sites = TRUE,
+#'#                                   num_pred_sites = 20)
+#'# # Show plot
+#'# clear_osm_ssn$plot
+#'}
+generate_osm_ssn <- function(sensor_data,
+                             lon_name, lat_name,
+                             root_loc,
+                             plot_network = TRUE,
+                             gen_pred_sites = FALSE,
+                             num_pred_sites = NA
+){
+
+  type <- NULL
+  locID <- NULL
+  weight <- NULL
+
+
+  if('locID' %in% names(sensor_data) == FALSE){
+    stop("There is no column locID on the data. Please, set a column called locID with the sensor locations")
+  }
+
+  if(gen_pred_sites & is.na(num_pred_sites)){
+    stop("Numbr of prediction sites not supplied. Please supply a number.")
+  }
+
+  sensors_formatted <- format_sensor_data(sensor_data,
+                                          lon_name,
+                                          lat_name)
+
+  river_line_network <- generate_river_network(sensors_formatted,
+                                               root_loc)
+
+
+  river_graph_network <- convert_network_to_graph(river_line_network,
+                                                  sensors_formatted)
+
+  net <- river_graph_network %>%
+    activate("nodes")
+
+  network_df <- st_as_sf(net, "nodes") %>%
+    cbind(st_coordinates(st_as_sf(net, "nodes"))) %>%
+    filter(type == "sensor")
+
+  missing_locations <- setdiff(sensors_formatted$locID, network_df$locID)
+
+  if(length(missing_locations) > 0){
+    warning(
+      paste0("The following location ID could not be blended in to the OSM SSN: ", missing_locations,
+             " and will be excluded. Please plot network for clarification.\n")
+    )
+  }
+
+  # Filter out missing sensors
+  sensors_formatted_filtered <- sensors_formatted %>%
+    filter(!locID %in% missing_locations)
+
+  if(nrow(sensors_formatted_filtered) < nrow(sensors_formatted)){
+    # Recalculated graph network with missing sensors
+    river_graph_network <- convert_network_to_graph(river_line_network,
+                                                    sensors_formatted_filtered)
+  }
+
+  dist_mat_all <- gen_distance_matrices(river_graph_network,
+                                        sensors_formatted_filtered,
+                                        root_loc)
+
+
+  osm_ssn <- list(
+    graph_network = river_graph_network,
+    dist_mat_all = dist_mat_all
+  )
+
+
+  if(gen_pred_sites){
+
+    predictions <- generate_prediction_locations(river_line_network,
+                                                 num_pred_sites)
+
+    all_sensors <- rbind(sensors_formatted_filtered,
+                         predictions)
+
+    river_graph_network_preds <- convert_network_to_graph(river_line_network,
+                                                          all_sensors)
+
+    dist_mat_sensors_preds <- gen_distance_matrices(river_graph_network_preds,
+                                                    all_sensors,
+                                                    root_loc = root_loc)
+
+    net <- river_graph_network_preds %>%
+      activate("nodes")
+
+    network_df <- st_as_sf(net, "nodes") %>%
+      cbind(st_coordinates(st_as_sf(net, "nodes"))) %>%
+      filter(type == "sensor")
+
+    pred_sites <- cbind(predictions, st_coordinates(predictions))
+
+    names(pred_sites)[names(pred_sites) == "X"] <- lon_name
+    names(pred_sites)[names(pred_sites) == "Y"] <- lat_name
+
+    osm_ssn$dist_mat_all_preds <- dist_mat_sensors_preds
+    osm_ssn$pred_sites <- pred_sites
+  }
+
+  if(plot_network){
+
+    orig_loc <- cbind(sensors_formatted, st_coordinates(sensors_formatted))
+
+    plot <- st_as_sf(net, "edges") %>%
+      mutate(length = as.numeric(weight)) %>%
+      st_as_sfc() %>%
+      leaflet() %>%
+      addPolylines() %>%
+      addTiles() %>%
+      addCircleMarkers(data = orig_loc,
+                       color = "red",
+                       label = ~paste0("Original location: ", locID))
+
+    if(gen_pred_sites){
+
+      network_df_pred <- network_df %>%
+        filter(!locID %in% sensors_formatted_filtered$locID)
+
+      network_df_sensors <- network_df %>%
+        filter(locID %in% sensors_formatted_filtered$locID)
+
+      plot <- plot %>%
+        addAwesomeMarkers(
+          data = network_df_pred,
+          label = ~locID,
+          icon = makeAwesomeIcon(icon = "circle",
+                                 # iconColor = "white",
+                                 markerColor = "green",
+                                 library = "fa")
+        )  %>%
+        addMarkers(
+          data = network_df_sensors,
+          label = ~ifelse(is.na(locID),
+                          yes = "Missing from network",
+                          no = locID)
+        )
+
+    }else{
+
+      plot <- plot %>%
+        addMarkers(
+          data = network_df,
+          label = ~ifelse(is.na(locID),
+                          yes = "Missing from network",
+                          no = locID)
+        )
+    }
+
+    osm_ssn$plot <- plot
+  }
+
+
+  class(osm_ssn) <- "osm_ssn"
+
+  return(osm_ssn)
+}
+
+
+
+
+#' Fits a mixed linear regression model using Stan. This is an updated version of ssnbayes()
 #'
 #' It requires the same number of observation/locations per day.
 #' It requires location id (locID) and points id (pid).
@@ -980,13 +1633,14 @@ ssnbayes <- function(formula = formula,
 #' Missing values are allowed in the response and in the covariates.
 #' Missing values are imputed using the `mtsdi` pacakge, with a `glm` family.
 #'
-#' @param path Path with the name of the SpatialStreamNetwork object
 #' @param formula A formula as in lm()
 #' @param family A description of the response distribution and link function to be used in the model. Must be one of: 'gaussian', 'binomial', 'poisson".
 #' @param data A long data frame containing the locations, dates, covariates and the response variable. It has to have the locID and date. No missing values are allowed in the covariates.
 #' The order in this data.fame MUST be: spatial locations (1 to S) at time t=1, then locations (1 to S) at t=2 and so on.
-#' @param space_method A list defining if use or not of an SSN object and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a list with the lon and lat for Euclidean distance models.
-#' @param time_method A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and coumn in the data with the time variable.
+#' @param osm_ssn An `osm_ssn` generated using `generate_osm_ssn()`.
+#' @param path File path with the name of the SpatialStreamNetwork object
+#' @param space_method A list, first element must be one of 'use_ssn', 'use_osm_ssn', 'no_ssn. Whether to use SSN or osm ssn, and the spatial correlation structure. The second element is the spatial covariance structure. A 3rd element is a list with the lon and lat for Euclidean distance models.
+#' @param time_method A list specifying the temporal structure (ar = Autorregressive; var = Vector autorregression) and column in the data with the time variable.
 #' @param iter Number of iterations
 #' @param warmup Warm up samples
 #' @param chains Number of chains
@@ -997,14 +1651,13 @@ ssnbayes <- function(formula = formula,
 #' @param loglik Logic parameter denoting if the loglik will be computed by the model.
 #' @param seed (optional) A seed for reproducibility
 #' @return A list with the model fit
-#' @details Missing values are not allowed in the covariates and they must be imputed before using ssnbayes(). Many options can be found in https://cran.r-project.org/web/views/MissingData.html.
-#' Missing values on the response variable can be imputed by default using mtsdi::mnimput(). We strongly recommend the documentation for this function be read before use.
+#' @details Missing values on the covariates and response can be imputed by default using mtsdi::mnimput(). We strongly recommend the documentation for this function be read before use.
 #' The pid in the data has to be consecutive from 1 to the number of observations.
 #' Users can use the SpatialStreamNetwork created with the SSN package. This will provide the spatial stream information used to compute covariance matrices. If that is the case, the data has
 #' to have point ids (pid) matching the ones in SSN distance matrices, so that a mapping can occur.
 #' @return It returns a ssnbayes object (similar to stan returns). It includes the formula used to fit the model. The output can be transformed into the stanfit class using class(fits) <- c("stanfit").
 #' @export
-#' @importFrom dplyr mutate %>% distinct left_join case_when
+#' @importFrom dplyr mutate %>% distinct left_join case_when filter
 #' @importFrom plyr .
 #' @importFrom rstan stan_model sampling
 #' @importFrom stats dist
@@ -1013,47 +1666,87 @@ ssnbayes <- function(formula = formula,
 #' @examples
 #'\dontrun{
 #'#options(mc.cores = parallel::detectCores())
-#'# Import SpatialStreamNetwork object
-#'#path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
-#'#n <- importSSN(path, predpts = "preds", o.write = TRUE)
-#'#family <-  "gaussian"
+#'#require(SSNdata)
+#'#formula = temp ~ SLOPE + elev + h2o_area + air_temp + sin + cos
 #'## Imports a data.frame containing observations and covariates
-#'#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNbayes"))
-#'#fit_ar <- ssnbayes(formula = y ~ SLOPE + elev + h2o_area + air_temp + sin + cos,
-#'#                   data = clear,
-#'#                   path = path,
-#'#                   family = family,
-#'#                   time_method = list("ar", "date"),
-#'#                   space_method = list('use_ssn', c("Exponential.taildown")),
-#'#                   iter = 2000,
-#'#                   warmup = 1000,
-#'#                   chains = 3,
-#'#                   cores = 3,
-#'#                   net = 2, # second network on the ssn object
-#'#                   addfunccol='afvArea')
-
-#' #space_method options examples
-#' #use list('no_ssn', 'Exponential.Euclid', c('lon', 'lat')) if no ssn object is available
+#'#clear <- readRDS(system.file("extdata/clear_obs.RDS", package = "SSNdata"))
+#'#family <-  "gaussian"
+#'
+#'# # If using osm_ssn:
+#'# # Generate osm_ssn
+#'# clear_osm_ssn <- generate_osm_ssn(clear, "long", "lat", root_loc = 12, plot_network = TRUE)
+#'# fit_ar <- ssnbayes2(formula,
+#'#                     data = clear,
+#'#                     osm_ssn = clear_osm_ssn,
+#'#                     family = family,
+#'#                     time_method = list("ar", "date"),
+#'#                     space_method = list('use_osm_ssn', c("Exponential.taildown")),
+#'#                     iter = 2000,
+#'#                     warmup = 1000,
+#'#                     chains = 3,
+#'#                     cores = 3)
+#'#
+#'#
+#'#
+#'# If not using osm_ssn, and instead using SSN:
+#'# Import SpatialStreamNetwork object
+#'# path <- system.file("extdata/clearwater.ssn", package = "SSNbayes")
+#'# fit_ar <- ssnbayes2(formula = formula,
+#'#                     data = clear,
+#'#                     path = path,
+#'#                     family = family,
+#'#                     time_method = list("ar", "date"),
+#'#                     space_method = list('use_ssn', c("Exponential.taildown")),
+#'#                     iter = 2000,
+#'#                     warmup = 1000,
+#'#                     chains = 3,
+#'#                     cores = 3,
+#'#                     net = 2, # second network on the ssn object
+#'#                     addfunccol='afvArea')
+#'#
+#'#
+#'#
+#'# #space_method options examples
+#'# #use list('no_ssn', 'Exponential.Euclid', c('lon', 'lat')) if no ssn object is available
 #'}
 
 ssnbayes2 <- function(formula = formula,
                       family = family,
                       data = data,
-                      path = path,
+                      osm_ssn = osm_ssn,
+                      path = NA,
                       time_method = time_method, # list("ar", "date")
-                      space_method = space_method, #list('use_ssn', 'Exponential.tailup'),
+                      space_method = space_method, #list('use_osm_ssn', 'Exponential.tailup'),
                       iter = 3000,
                       warmup = 1500,
                       chains = 3,
                       cores = 3,
                       refresh = max(iter/100, 1),
-                      net = 1,
-                      addfunccol = addfunccol,
+                      net = NA,
+                      addfunccol = NA,
                       loglik = FALSE,
-                      seed = seed
-){
+                      seed = seed){
+
+  locID <- NULL
+
+  ssn_type <- space_method[[1]]
 
   # checks
+  if(! ssn_type %in% c("use_ssn", "use_osm_ssn", "no_ssn")){
+    stop("First argument of space_method must be one of, 'use_ssn', 'use_osm_ssn', 'no_ssn'")
+  }
+
+
+  if(ssn_type == "use_ssn" & missing(path)){
+    stop("Using SSN, yet no path is supplied. Please provide a path for SSN.")
+  }
+
+  if(ssn_type == "use_osm_ssn" & missing(osm_ssn)){
+    stop("Using osm_ssn, yet no osm_ssn is supplied. Please provide an osm_ssn.")
+  }
+
+
+
   if(missing(time_method)){
     stop("Need to define the method (ar or var) and the column associated with time")
   }
@@ -1070,6 +1763,13 @@ ssnbayes2 <- function(formula = formula,
     stop("family must be one of: 'gaussian', 'binomial', 'poisson")
   }
 
+  if("data.table" %in% class(data)){
+    message("Data is of class data.table; converting to data.frame...")
+    data <- as.data.frame(data)
+  }
+
+
+
   time_points <- time_method[[2]]
 
   #if('date' %in% names(data) == FALSE) stop("There is no column date on the data. Please, set a column called date with the time")
@@ -1078,8 +1778,14 @@ ssnbayes2 <- function(formula = formula,
   if(missing(seed)) seed <- sample(1:1E6,1,replace=TRUE)
 
   if(!missing(space_method)){
-    message('Using SSN object...')
-    if(space_method[[1]] == 'use_ssn'){
+
+    ssn_type <- space_method[[1]]
+
+    if(ssn_type != 'no_ssn'){
+
+      if(ssn_type == 'use_ssn'){ message('Using SSN object...') }
+      else{ message('Using osm ssn object...') }
+
       ssn_object <- TRUE
 
 
@@ -1096,7 +1802,7 @@ ssnbayes2 <- function(formula = formula,
       }
 
     }
-    if(space_method[[1]] == 'no_ssn'){
+    else if(ssn_type == 'no_ssn'){
       message('No SSN object defined')
       ssn_object <- FALSE
       if(space_method[[2]] %in% c("Exponential.Euclid") == FALSE) {stop("Need to specify Exponential.Euclid")}
@@ -1169,13 +1875,13 @@ ssnbayes2 <- function(formula = formula,
     data_com <- paste0(data_initial,
                        '
                        vector[N*T] y_obs;
-                        }'
+                       }'
     )
   }else if (family == "poisson") {
     data_com <- paste0(data_initial,
                        '
-                        int<lower=0> y_obs[N*T];
-                        }'
+                       int<lower=0> y_obs[N*T];
+                       }'
     )
   }else{
     data_com <- paste0(data_initial,
@@ -1613,6 +2319,15 @@ ssnbayes2 <- function(formula = formula,
 
   options(na.action='na.pass') # to preserve the NAs
 
+  # If using an osm_ssn, filter the data to the distance matrices column names
+  #  - in the event some sensor locations were not able to be snapped to the osm ssn
+  if(space_method[[1]] == "use_osm_ssn"){
+    sensor_names <- osm_ssn$dist_mat_all$e %>% colnames()
+
+    data <- data %>%
+      filter(locID %in% sensor_names)
+  }
+
   out_list <- mylm(formula = formula, data = data) # produces the design matrix
 
   if (anyNA(out_list$y)){
@@ -1636,7 +2351,7 @@ ssnbayes2 <- function(formula = formula,
     # # Impute missing data
     # require(mtsdi)
 
-    message("Imputing missing data ...")
+    message("Imputing missing data")
 
     data_impute <- mtsdi::mnimput(
       formula = formula,
@@ -1710,19 +2425,25 @@ ssnbayes2 <- function(formula = formula,
   # # index for missing values
   # i_y_mis <- obs_data[is.na(obs_data$y),]$pid
 
-  if(ssn_object == TRUE){ # the ssn object exist?
-    mat_all <- dist_weight_mat(path = path, net = net, addfunccol = addfunccol)
+  if(space_method[[1]] == "use_osm_ssn"){
+    mat_all <- osm_ssn$dist_mat_all
   }
+  else{
+    message("Using supplied SSN")
+    if(ssn_object == TRUE){ # the ssn object exist?
+      mat_all <- dist_weight_mat(path = path, net = net, addfunccol = addfunccol)
+    }
 
-  if(ssn_object == FALSE){ # the ssn object does not exist- purely spatial
+    if(ssn_object == FALSE){ # the ssn object does not exist- purely spatial
 
-    first_date <- unique(obs_data[, names(obs_data) %in% time_points])[1]
+      first_date <- unique(obs_data[, names(obs_data) %in% time_points])[1]
 
-    di <- dist(obs_data[obs_data$date == first_date, c('lon', 'lat')], #data$date == 1
-               method = "euclidean",
-               diag = FALSE,
-               upper = FALSE) %>% as.matrix()
-    mat_all <-  list(e = di, D = di, H = di, w.matrix = di, flow.con.mat = di)
+      di <- dist(obs_data[obs_data$date == first_date, c('lon', 'lat')], #data$date == 1
+                 method = "euclidean",
+                 diag = FALSE,
+                 upper = FALSE) %>% as.matrix()
+      mat_all <-  list(e = di, D = di, H = di, w.matrix = di, flow.con.mat = di)
+    }
   }
 
 
@@ -1739,7 +2460,10 @@ ssnbayes2 <- function(formula = formula,
 
                     X = Xarray, # design matrix
                     mat_all = mat_all,
-                    alpha_max = 4 * max(mat_all$H) ) # a list with all the distance/weights matrices
+                    # Below is original code
+                    # alpha_max = 4 * max(mat_all$H)
+                    alpha_max = 2 * max(mat_all$H) # THIS IS CHANGED FROM ORIGINAL VERSION
+  ) # a list with all the distance/weights matrices
 
 
 
@@ -1748,13 +2472,14 @@ ssnbayes2 <- function(formula = formula,
   data_list$h = data_list$mat_all$H # total stream distance
   data_list$W = data_list$mat_all$w.matrix # spatial weights
 
+
   #for tail-down
   data_list$flow_con_mat = data_list$mat_all$flow.con.mat #flow connected matrix
   data_list$D = data_list$mat_all$D #downstream hydro distance matrix
 
   #RE1 = RE1mm # random effect matrix
 
-  data_list$I = diag(1, nrow(data_list$W), nrow(data_list$W))  # diagonal matrix
+  data_list$I = diag(1, nrow(data_list$e), nrow(data_list$e))  # diagonal matrix
 
   if(family %in% c("poisson", "binomial")){
     ini = 0
@@ -1771,6 +2496,8 @@ ssnbayes2 <- function(formula = formula,
     model_name = "ssn_ar"
   )
 
+  message("Done!")
+
   message("Sampling model ...")
 
   fit <- rstan::sampling(object = compiled_model,
@@ -1785,94 +2512,15 @@ ssnbayes2 <- function(formula = formula,
                          seed = seed,
                          refresh = refresh)
 
+  message("Done!")
+
   attributes(fit)$formula <- formula
 
-  class(fit) <- 'ssnbayes'
+  class(fit) <- 'ssnbayes2'
 
   return(fit)
 }
 
-
-
-
-
-
-
-#' Performs spatio-temporal prediction in R using an ssnbayes object from a fitted model.
-#'
-#' It will take an observed and a prediction data frame.
-#' It requires the same number of observation/locations per day.
-#' It requires location id (locID) and points id (pid).
-#' The locID are unique for each site.
-#' The pid is unique for each observation.
-#' Missing values are allowed in the response but not in the covariates.
-#'
-#' @param object A stanfit object returned from ssnbayes
-#' @param ... Other parameters
-#' @param path Path with the name of the SpatialStreamNetwork object
-#' @param obs_data The observed data frame
-#' @param pred_data The predicted data frame
-#' @param net (optional) Network from the SSN object
-#' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
-#' @param addfunccol The variable used for spatial weights
-#' @param chunk_size (optional) the number of locID to make prediction from
-#' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
-#' @param seed (optional) A seed for reproducibility
-#' @return A data frame with the location (locID), time point (date), plus the MCMC draws from the posterior from 1 to the number of iterations.
-#' The locID0 column is an internal consecutive location ID (locID) produced in the predictions, starting at max(locID(observed data)) + 1. It is used internally in the way predictions are made in chunks.
-#' @details The returned data frame is melted to produce a long dataset. See examples.
-#' @export
-#' @importFrom dplyr mutate %>% distinct left_join case_when
-#' @importFrom plyr .
-#' @importFrom rstan stan
-#' @importFrom stats dist
-#' @author Edgar Santos-Fernandez
-#' @examples
-#' \donttest{
-#'#require('SSNdata')
-#'#clear_preds <- readRDS(system.file("extdata/clear_preds.RDS", package = "SSNdata"))
-#'#clear_preds$y <- NA
-#'#pred <- predict(object = fit_ar,
-#'#                 path = path,
-#'#                 obs_data = clear,
-#'#                 pred_data = clear_preds,
-#'#                 net = 2,
-#'#                 nsamples = 100, # numb of samples from the posterior
-#'#                 addfunccol = 'afvArea', # var for spatial weights
-#'#                 locID_pred = locID_pred,
-#'#                 chunk_size = 60)
-#'}
-
-predict.ssnbayes <- function(object = object,
-                             ...,
-                             path = path,
-                             obs_data = obs_data,
-                             pred_data = pred_data,
-                             net = net,
-                             nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
-                             addfunccol = addfunccol, # variable used for spatial weights
-                             locID_pred = locID_pred,
-                             chunk_size = chunk_size,
-                             seed = seed) {
-
-  stanfit <- object
-  formula <- as.formula(attributes(stanfit)$formula)
-  obs_resp <- obs_data[,gsub("\\~.*", "", formula)[2]]
-  if( any( is.na(obs_resp) )) {stop("Can't have missing values in the response in the observed data. You need to impute them before")}
-
-
-  out <- pred_ssnbayes(object = object,
-                       path = path,
-                       obs_data = obs_data,
-                       pred_data = pred_data,
-                       net = net,
-                       nsamples = nsamples, # number of samples to use from the posterior in the stanfit object
-                       addfunccol = addfunccol, # variable used for spatial weights
-                       locID_pred = locID_pred,
-                       chunk_size = chunk_size,
-                       seed = seed)
-  out
-}
 
 
 
@@ -1896,6 +2544,7 @@ predict.ssnbayes <- function(object = object,
 #' @param pred_data The predicted data frame
 #' @param net (optional) Network from the SSN object
 #' @param seed (optional) A seed for reproducibility
+# #' @param family A description of the response distribution and link function to be used in the model. Must be one of: 'gaussian', 'binomial', 'poisson".
 #' @return A data frame
 #' @export
 #' @importFrom dplyr mutate %>% distinct left_join case_when
@@ -1905,15 +2554,18 @@ predict.ssnbayes <- function(object = object,
 #' @importFrom stats as.formula
 #' @author Edgar Santos-Fernandez
 
-krig <- function(object = object,
-                 mat_all_preds = mat_all_preds,
-                 nsamples = 10,
-                 start = 1,
-                 chunk_size = 50,
-                 obs_data = obs_data,
-                 pred_data = pred_data,
-                 net = net,
-                 seed = seed){
+krig2 <- function(object = object,
+                  mat_all_preds = mat_all_preds,
+                  nsamples = 10,
+                  start = 1,
+                  chunk_size = 50,
+                  obs_data = obs_data,
+                  pred_data = pred_data,
+                  net = net,
+                  seed = seed
+                  # ,
+                  # family = family
+){
 
   if(missing(seed)) seed <- sample(1:1E6,1,replace=TRUE)
   set.seed(seed)
@@ -1924,7 +2576,8 @@ krig <- function(object = object,
   phi <- rstan::extract(stanfit, pars = 'phi')$phi
 
   samples <- sample(1:nrow(phi), nsamples, replace = FALSE)
-  phi <- phi[samples]
+  # phi <- phi[samples]
+  phi <- rbeta(samples, 9,1)
 
   betas <- rstan::extract(stanfit, pars = 'beta')$beta
   betas <- betas[samples,]
@@ -1938,7 +2591,18 @@ krig <- function(object = object,
   alpha_td <- rstan::extract(stanfit, pars = 'alpha_td')$alpha_td #NB
   alpha_td <- alpha_td[samples]
 
+
   locID_obs <- sort(unique(obs_data$locID))
+
+  if(is.numeric(locID_obs)){
+    if(length(setdiff(locID_obs, 1:length(locID_obs))) > 1){
+      warning("Numeric locID is not consecutive.")
+      message("Converting locID to consecutive.")
+
+      locID_obs <- as.numeric(factor(locID_obs)) # conseq locID
+    }
+  }
+
 
   pred_data$temp <- NA
 
@@ -2044,8 +2708,20 @@ krig <- function(object = object,
 
   cbind(pred_data_1[,c('locID0','locID','date')], data.frame(Ypred))
 
+  # # if family .... rounding / convert to 0, 1
+  # if(family == "poisson"){
+  #
+  # }
 }
 
+
+
+
+
+
+
+
+##### Internal Functions #####
 
 
 #' Internal function used to perform spatio-temporal prediction in R using a stanfit object from ssnbayes()
@@ -2059,12 +2735,15 @@ krig <- function(object = object,
 #' Missing values are allowed in the response but not in the covariates.
 #'
 #' @param object A stanfit object returned from ssnbayes
-#' @param path Path with the name of the SpatialStreamNetwork object
+#' @param use_osm_ssn Use a supplied osm_ssn instead a SpatialStreamNetwork object.
+#' @param osm_ssn The osm_ssn to be used.
+# #' @param family A description of the response distribution and link function to be used in the model. Must be one of: 'gaussian', 'binomial', 'poisson".
+#' @param path If not using an osm_ssn, path with the name of the SpatialStreamNetwork object.
 #' @param obs_data The observed data frame
 #' @param pred_data The predicted data frame
 #' @param net (optional) Network from the SSN object
 #' @param nsamples The number of samples to draw from the posterior distributions. (nsamples <= iter)
-#' @param addfunccol The variable used for spatial weights
+#' @param addfunccol If not using an osm_ssn, the variable used for spatial weights.
 #' @param chunk_size (optional) the number of locID to make prediction from
 #' @param locID_pred (optional) the location id for the predictions. Used when the number of pred locations is large.
 #' @param seed (optional) A seed for reproducibility
@@ -2088,6 +2767,9 @@ krig <- function(object = object,
 
 pred_ssnbayes <- function(
     object = object,
+    use_osm_ssn = TRUE,
+    osm_ssn = osm_ssn,
+    # family = family,
     path = path,
     obs_data = obs_data,
     pred_data = pred_data,
@@ -2098,16 +2780,23 @@ pred_ssnbayes <- function(
     chunk_size = chunk_size,
     seed = seed
 ){
+
   stanfit <- object
   class(object) <- 'stanfit'
 
   if(missing(seed)) seed <- sample(1:1E6,1,replace=TRUE)
   set.seed(seed)
 
+  if(missing(use_osm_ssn)) use_osm_ssn <- FALSE
 
-  mat_all_preds <- dist_weight_mat_preds(path = path,
-                                         net = net,
-                                         addfunccol = addfunccol)
+  if(!use_osm_ssn){
+    mat_all_preds <- dist_weight_mat_preds(path = path,
+                                           net = net,
+                                           addfunccol = addfunccol)
+  }
+  else{
+    mat_all_preds <- osm_ssn$dist_mat_all
+  }
 
   # the row and col names is not conseq
   rownames(mat_all_preds$e) <- 1:(nrow(mat_all_preds$e))
@@ -2139,14 +2828,27 @@ pred_ssnbayes <- function(
 
     chunk_size <- ifelse(j != is, chunk_size, pred_points - (j - 1) * chunk_size)
 
-    out <- krig(object = object,
-                mat_all_preds = mat_all_preds,
-                nsamples = nsamples,
-                start = start,
-                chunk_size = chunk_size,
-                obs_data = obs_data,
-                pred_data = pred_data,
-                net = net)
+    if(!use_osm_ssn){
+      out <- krig(object = object,
+                  mat_all_preds = mat_all_preds,
+                  nsamples = nsamples,
+                  start = start,
+                  chunk_size = chunk_size,
+                  obs_data = obs_data,
+                  pred_data = pred_data,
+                  net = net)
+    }else{
+      out <- krig2(object = object,
+                   mat_all_preds = mat_all_preds,
+                   nsamples = nsamples,
+                   start = start,
+                   chunk_size = chunk_size,
+                   obs_data = obs_data,
+                   pred_data = pred_data
+                   # ,
+                   # family = family
+      )
+    }
 
     out_all <- rbind(out_all, out)
   }
@@ -2154,6 +2856,446 @@ pred_ssnbayes <- function(
   data.frame(out_all)
 
 }
+
+
+
+
+
+
+
+#' Converts a dataframe containing sensor data in to an `sf` object
+#'
+#' @param sensor_data A dataframe containing sensor locations and a column called `locID` denoting the location IDs.
+#' @param lon_name The column name containing the longitude of the sensor.
+#' @param lat_name The column name containing the latitude of the sensor.
+#' @return An `sf` dataframe containing sensor locations and `locID`.
+#' @importFrom dplyr all_of %>% distinct select
+#' @importFrom sf st_as_sf
+#' @author Sean Francis
+format_sensor_data <- function(sensor_data, lon_name, lat_name){
+  sensor_data %>%
+    select(all_of(c("locID", lat_name, lon_name))) %>%
+    distinct %>%
+    st_as_sf(coords = c(lon_name,lat_name),
+             crs = 4326) %>%
+    return()
+}
+
+
+#' Takes an `sf` object as input, and queries Open Street Maps for rivers and streams within the bounds of the sensor locations.
+#'
+#' @param sensor_locations An `sf` dataframe containing sensor locations and `locID`.
+#' @param root_loc A sensor location which all water flows towards.
+#' @return An `sf` object of `MULTILINESTRING`(s) containing the streams and rivers, cropped to the sensor location, with all lines not containing the outlet/root_loc removed.
+#' @details This function queries Open Street Maps using `osmdata` package in R. Crops the data to the bounding box of the sensor locations. Removes all lines not connected to the outlet/root_loc.
+#' @importFrom sf st_bbox st_touches st_crop st_nearest_feature
+#' @importFrom osmdata opq add_osm_feature osmdata_sf
+#' @importFrom dplyr %>% group_by summarise
+#' @importFrom igraph graph_from_adj_list components
+#' @importFrom purrr pluck
+#' @author Sean Francis
+generate_river_network <- function(sensor_locations, root_loc){
+
+  locID <- NULL
+
+  # Get the bounding box of the sensor locations
+  sensors_bbox <- st_bbox(sensor_locations)
+
+  buffer <- 0.05
+
+  # Increase the size of the bounding box
+  sensors_bbox[1] <- sensors_bbox[1] - buffer
+  sensors_bbox[2] <- sensors_bbox[2] - buffer
+  sensors_bbox[3] <- sensors_bbox[3] + buffer
+  sensors_bbox[4] <- sensors_bbox[4] + buffer
+
+  message("Searching OSM for river data...")
+  # Query OSM
+  lines <- ((opq(bbox = sensors_bbox,
+                 timeout = 2000,
+                 memsize = 10e8) %>%
+               add_osm_feature(key = 'waterway', value = c('river', 'stream')) %>%
+               osmdata_sf())$osm_lines)
+  message("Done!")
+
+  # Crop river network to the bounding box
+  lines <- st_crop(lines, sensors_bbox)
+
+  # Concatenate `LINESTRING` into connected `MULTILINESTRING`(s).
+  concat <- (lines %>%
+               st_touches() %>%
+               graph_from_adj_list() %>%
+               components())$membership
+
+  river_network <- group_by(
+    lines,
+    section = as.character({{concat}})
+  ) %>%
+    summarise()
+
+  root_loc_point <- sensor_locations %>%
+    filter(locID == root_loc)
+
+
+  touching_index <- st_nearest_feature(root_loc_point, river_network)
+
+  # figure out which multilinestring contains root_loc, remove all others
+  # assumes all sensors are connected by flow
+  river_network_main <- river_network[touching_index, ]
+
+  return(river_network_main)
+}
+
+
+#' Combines two `sf` objects, the sensor locations and river network, in to an `sfnetwork`.
+#'
+#' @param river_network An `sf` object of `MULTILINESTRING`(s) containing the streams and rivers, cropped to the sensor locations.
+#' @param sensor_locations An `sf` dataframe containing sensor locations and `locID`.
+#' @return An `sfnetwork` graph containing the river network and sensors.
+#' @details This function "snaps" sensor locations to the nearest point on the network.
+#' Additionally, the sensor locations are stored in the graph, `g`, and can be accessed via `V(g)$type`, as "sensor".
+#' @importFrom sf st_zm st_geometry st_cast st_sfc st_crs
+#' @importFrom dplyr %>% mutate
+#' @importFrom sfnetworks as_sfnetwork st_network_blend
+#' @importFrom igraph V
+#' @author Sean Francis
+convert_network_to_graph <- function(river_network,
+                                     sensor_locations
+                                     # # If elevation variable is not given
+                                     #, elev_var = NA
+){
+
+  # if(is.na(elev_var)){
+  #   sensor_locations <- elevatr::get_elev_point(sensor_locations,
+  #                                               prj = st_crs(river_network),
+  #                                               src = "epqs") %>%
+  #     arrange(desc(elevation))
+  # }
+
+  geom <- NULL
+
+  network <-
+    river_network %>%
+    st_zm(geom) %>%
+    st_geometry() %>%
+    st_cast("LINESTRING") %>%
+    # back to sfc
+    st_sfc(crs = st_crs(river_network)) %>%
+    # directed graph
+    as_sfnetwork(
+      length_as_weight = TRUE, # Check what this argument does
+      directed = FALSE) %>%
+    # Add sensors as nodes - this does the snapping to lines automatically
+    st_network_blend(sensor_locations)
+
+
+
+  network <- network %>%
+    mutate(
+      "node_ID" = 1:length(network)
+    )
+
+  num_sensors <- nrow(sensor_locations)
+
+  len_net <- length(igraph::V(network))
+
+  num_nodes_not_needed <- len_net-num_sensors
+
+
+  igraph::V(network)$type <- c(rep("node", times = num_nodes_not_needed),
+                               rep("sensor", times = num_sensors))
+
+  return(network)
+
+}
+
+# gen_river_network_df <- function(network, ){
+#
+#   network_df <- as.data.frame(network,
+#                               what = "vertices") %>%
+#     filter(type == "sensor") %>%
+#     st_as_sf
+#
+#   network_df <- network_df %>%
+#     cbind(st_coordinates(network_df)) %>%
+#     arrange()
+#
+#   return(network_df)
+# }
+
+
+#' Creates a list containing the stream distances and weights
+#'
+#' @param network An `sfnetwork` containing the river network and sensor locations.
+#' @param sensor_locations An `sf` dataframe containing sensor locations and `locID`.
+#' @param root_loc A sensor location which all water flows towards.
+#' @return A list of matrices.
+#' @importFrom dplyr %>%
+#' @importFrom igraph distances shortest_paths
+#' @importFrom sf st_coordinates
+#' @importFrom geosphere distHaversine
+#' @importFrom stats rbeta
+# #' @importMethodsFrom sfnetworks as.data.frame
+#' @author Sean Francis
+gen_distance_matrices <- function(network,
+                                  sensor_locations,
+                                  root_loc){
+
+  network_df_all <- as.data.frame(network,
+                                  what = "vertices")
+
+  root <- which(network_df_all$locID == root_loc)
+
+  num_sensors <- nrow(sensor_locations)
+
+  sensor_indexes <- which(!is.na(network_df_all$locID))
+
+  num_nodes <- nrow(network_df_all)
+
+  names <- network_df_all$locID %>%
+    unique %>%
+    stats::na.omit()
+
+  ordered_names <- sensor_locations$locID %>%
+    as.character
+
+
+  directed_dist <- matrix(0,
+                          nrow = num_nodes,
+                          ncol = num_nodes)
+
+  w <- matrix(0,
+              nrow = num_sensors,
+              ncol = num_sensors)
+
+
+  dimnames(w) <- list(names, names)
+
+  w <- w[ordered_names,
+         ordered_names]
+
+  message("Tail-up model cannot be computed. Please ensure you use tail-down for model fitting.")
+
+  hydro_distance <- distances(network,
+                              v = sensor_indexes,
+                              to = sensor_indexes,
+                              mode = "out")
+
+  dimnames(hydro_distance) <- list(names, names)
+
+  hydro_distance <- hydro_distance[ordered_names,
+                                   ordered_names]
+
+
+
+
+  for (sensor in sensor_indexes){
+
+    if(sensor == root){
+      directed_dist[root, root] <- 0
+    }else{
+
+      # Get shortest path
+      path <- (shortest_paths(network,
+                              from = sensor,
+                              to = root,
+                              mode = 'out')$vpath
+      )[[1]] %>% as.numeric
+
+
+      path <- path[path %in% sensor_indexes]
+
+
+      tmp_directed_distances <- distances(network,
+                                          v = sensor,
+                                          to = path,
+                                          mode = "out")
+
+      dimnames(tmp_directed_distances) <- list(sensor, path)
+
+      # Get the above and put in matrix
+      directed_dist[sensor, path] <- tmp_directed_distances
+
+    }
+  }
+
+  directed_distances <- directed_dist[sensor_indexes, sensor_indexes]
+
+  dimnames(directed_distances) <- list(names, names)
+
+  # reorder
+  directed_distances <- directed_distances[ordered_names,
+                                           ordered_names]
+
+
+  D <- matrix(0,num_sensors, num_sensors)
+
+  dimnames(D) <- list(ordered_names,
+                      ordered_names)
+
+  e <- matrix(0,num_sensors, num_sensors)
+
+  dimnames(e) <- list(ordered_names,
+                      ordered_names)
+
+
+  # Now we need to iterate through the matrix
+  for (i in row.names(D)){
+    for (j in colnames(D)){
+
+      # Calculate e while we're iterating through the matrices
+      tmp_e <- cbind(sensor_locations,
+                     st_coordinates(sensor_locations))
+
+      point_i <- c(tmp_e$X[tmp_e$locID == i],
+                   tmp_e$Y[tmp_e$locID == i])
+
+      point_j <- c(tmp_e$X[tmp_e$locID == j],
+                   tmp_e$Y[tmp_e$locID == j])
+
+      e[i, j] <- distHaversine(point_i, point_j)
+
+      # Calculate D
+      if(i != j){
+
+        node_i <- which(network_df_all$locID == i)
+        node_j <- which(network_df_all$locID == j)
+
+        # Get the path from
+        path_i <- (shortest_paths(network,
+                                  from = node_i,
+                                  to = root,
+                                  mode = 'out')$vpath
+        )[[1]] %>% as.numeric
+
+
+        # Get the path to
+        path_j <- (shortest_paths(network,
+                                  from = node_j,
+                                  to = root,
+                                  mode = 'out')$vpath
+        )[[1]] %>% as.numeric
+
+        # Find the common node
+        intersecting_nodes <- intersect(path_i, path_j)
+
+
+        if (length(intersecting_nodes) == 0){
+          D[i, j] <- 0
+        }else{
+          # Find the closest node to the "from" node
+          node_dist <- distances(network,
+                                 v = node_i,
+                                 to = intersecting_nodes)
+
+          D[i, j] <- node_dist[1, which(node_dist == min(node_dist))]
+        }
+
+      }
+
+      # Set all instances of "Inf" in hydro_distance to 0
+      if (hydro_distance[i, j] == Inf) {hydro_distance[i, j] = 0}
+    }
+  }
+
+  # Set flow connectivity to directed distance
+  flow.con.mat <- directed_distances
+
+  for (i in 1:(num_sensors)){
+    for (j in 1:(num_sensors)){
+
+      flow.con.mat[i, j] = ifelse(flow.con.mat[i, j] == 0,
+                                  yes = 0,
+                                  no = 1)
+
+      if(i == j){flow.con.mat[i, j] <- 1}
+
+    }
+  }
+
+  # Convert to symmetric according to top triangular
+  flow.con.mat = flow.con.mat + t(flow.con.mat) - 2*diag(diag(flow.con.mat)) + diag(1,nrow=dim(flow.con.mat)[1])
+
+
+  # total distance
+  # H <- D + base::t(D)
+
+  H <- hydro_distance
+
+  # e_df <- network_df_all %>%
+  #   filter(type == "sensor") %>%
+  #   st_as_sf()
+
+  # e <- sensor_locations %>%
+  #   cbind(st_coordinates(sensor_locations)) %>%
+  #   as.data.frame() %>%
+  #   select(X, Y) %>%
+  #   dist(., method = "euclidean", diag = FALSE, upper = FALSE) %>%
+  #   as.matrix()
+  #
+  # dimnames(e) <- dimnames(hydro_distance)
+
+  return(
+    list(e = e,
+         D = D,
+         H = H,
+         w.matrix = w, # to complete later
+         flow.con.mat = flow.con.mat)
+  )
+}
+
+
+
+
+#' Creates an `sf` dataframe containing equally spaced points on a river network
+#'
+#' @param river_network An `sf` object of `MULTILINESTRING`(s) containing the streams and rivers, cropped to the sensor locations.
+#' @param num_pred_sites An integer indicating the number of prediction sites to generate.
+#' @return An `sf` dataframe of `POINT`(s) containing prediction sites.
+#' @importFrom dplyr %>% rename filter mutate row_number
+#' @importFrom sf st_sample st_is_empty st_as_sf st_geometry_type st_cast
+#' @author Sean Francis
+generate_prediction_locations <- function(river_network,
+                                          num_pred_sites){
+
+  sampled_points <- st_sample(river_network,
+                              type = "regular",
+                              size = num_pred_sites)
+
+  x <- NULL
+  geomtype <- NULL
+
+  # Remove empty polygons
+  sampled_points <- sampled_points[!st_is_empty(sampled_points)]
+
+  d <- st_as_sf(sampled_points) %>%
+    rename("geometry" = x)
+
+
+  d$geomtype <- st_geometry_type(d)
+
+  d1 <- d %>%
+    filter(geomtype == "POINT")
+
+  suppressWarnings({
+    d2 <- d %>%
+      filter(geomtype == "MULTIPOINT") %>%
+      st_cast("POINT")
+  })
+
+  df <- rbind(d1, d2) %>%
+    # Keep column location
+    rename("locID" = geomtype) %>%
+    mutate("locID" = paste0("pred_site_", row_number()))
+
+  rownames(df) <- NULL
+
+
+  return(df)
+
+}
+
+
 
 
 

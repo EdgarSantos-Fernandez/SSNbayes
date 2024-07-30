@@ -1,7 +1,7 @@
 Package: SSNbayes
 Type: Package
 Title: Bayesian Spatio-Temporal Analysis in Stream Networks
-Version: 0.0.3
+Version: 0.1.0
 Authors@R: c(person("Edgar", "Santos-Fernandez", role = c("aut", "cre","cph"),
                       email = "santosfe@qut.edu.au") )
 Depends: 
@@ -13,11 +13,17 @@ Imports:
     mtsdi,
     sf,
     methods,
-    SSN2
+    SSN2,
+    sfnetworks,
+    igraph,
+    geosphere,
+    osmdata,
+    purrr,
+    leaflet
 Description: Fits Bayesian spatio-temporal models and makes predictions on stream networks using the approach by Santos-Fernandez, Edgar, et al. (2022)."Bayesian spatio-temporal models for stream networks". <arXiv:2103.03538>. In these models, spatial dependence is captured using stream distance and flow connectivity, while temporal autocorrelation is modelled using vector autoregression methods. 
 License: GPL-2
 Encoding: UTF-8
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 Suggests: 
     rmarkdown,
     knitr,

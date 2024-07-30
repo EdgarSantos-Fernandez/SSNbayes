@@ -55,6 +55,7 @@ Missing values are allowed in the response but not in the covariates.
 }
 \details{
 The returned data frame is melted to produce a long dataset. See examples.
+Currently, the predict() function produces predictions for normal random variables. However, this can be easily transformed in to counts (Poisson distributed) and presence/absence (binomial distributed).
 }
 \examples{
 \donttest{

@@ -6,6 +6,8 @@
 \usage{
 pred_ssnbayes(
   object = object,
+  use_osm_ssn = TRUE,
+  osm_ssn = osm_ssn,
   path = path,
   obs_data = obs_data,
   pred_data = pred_data,
@@ -20,7 +22,11 @@ pred_ssnbayes(
 \arguments{
 \item{object}{A stanfit object returned from ssnbayes}
 
-\item{path}{Path with the name of the SpatialStreamNetwork object}
+\item{use_osm_ssn}{Use a supplied osm_ssn instead a SpatialStreamNetwork object.}
+
+\item{osm_ssn}{The osm_ssn to be used.}
+
+\item{path}{If not using an osm_ssn, path with the name of the SpatialStreamNetwork object.}
 
 \item{obs_data}{The observed data frame}
 
@@ -30,7 +36,7 @@ pred_ssnbayes(
 
 \item{nsamples}{The number of samples to draw from the posterior distributions. (nsamples <= iter)}
 
-\item{addfunccol}{The variable used for spatial weights}
+\item{addfunccol}{If not using an osm_ssn, the variable used for spatial weights.}
 
 \item{locID_pred}{(optional) the location id for the predictions. Used when the number of pred locations is large.}
 

@@ -5,8 +5,6 @@
 \title{A simple modeling function using a formula and data}
 \usage{
 mylm(formula, data)
-
-mylm(formula, data)
 }
 \arguments{
 \item{formula}{A formula as in lm()}
@@ -15,18 +13,11 @@ mylm(formula, data)
 }
 \value{
 A list of matrices
-
-A list of matrices
 }
 \description{
 A simple modeling function using a formula and data
-
-A simple modeling function using a formula and data
 }
 \examples{
-options(na.action='na.pass')
-data("iris")
-out_list = mylm(formula = Petal.Length ~ Sepal.Length + Sepal.Width, data = iris)
 options(na.action='na.pass')
 data("iris")
 out_list = mylm(formula = Petal.Length ~ Sepal.Length + Sepal.Width, data = iris)
