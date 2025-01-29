@@ -1,7 +1,3 @@
-#   Install Package:           'Ctrl + Shift + B'
-#   Check Package:             'Ctrl + Shift + E'
-#   Test Package:              'Ctrl + Shift + T'
-
 #' Collapses a SpatialStreamNetwork object into a data frame
 #'
 #' @param ssn An S4 SpatialStreamNetwork object created with SSN2 package.
@@ -117,7 +113,6 @@ dist_weight_mat <- function(path = path, net = 1, addfunccol='addfunccol'){
 
   #obs_data_coord <- data.frame(n@obspoints@SSNPoints[[1]]@point.coords)
   #obs_data_coord$locID <- factor(1:nrow(obs_data_coord))
-
   #obs_data <- obs_data %>% left_join(obs_data_coord, by = c('locID'))
   obs_data$point <- 'Obs'
 
@@ -202,11 +197,9 @@ dist_weight_mat_preds <- function(path = path, net = 1, addfunccol = 'addfunccol
 
   D <- rbind(cbind(doo, dop), cbind(dpo, dpp))
 
-  #colnames(D)
 
   H <- D + base::t(D)
 
-  #print(dim(D))
 
   pred_data <- dplyr::filter(pred_data, pid %in% colnames(H))
   # NB replace here by the variable used for spatial weights
