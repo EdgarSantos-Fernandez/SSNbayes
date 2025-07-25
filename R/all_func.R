@@ -3292,3 +3292,412 @@ generate_prediction_locations <- function(river_network,
 
 
 
+
+
+
+
+
+#' Spatio-Temporal Attention Regression Network (STARN)
+#'
+#' Fits a deep learning spatio-temporal model using LSTM layers with attention mechanisms and spatial embeddings.
+#' This model is designed for detecting anomalies in high-frequency sensor data by capturing both spatial
+#' dependencies (via distance-based embeddings) and temporal dynamics (via recurrent layers with attention).
+#' Uncertainty is quantified via Monte Carlo dropout during inference.
+#'
+#' @param formula A formula specifying the response and predictors, e.g., \code{y ~ x1 + x2}.
+#' @param data A data frame containing the spatio-temporal sensor data.
+#' @param spat_matrix A spatial distance matrix between sensor locations (square and symmetric).
+#' @param time_col Name of the column indicating temporal ordering (unquoted or quoted).
+#' @param loc_col Name of the column indicating spatial location IDs (unquoted or quoted).
+#' @param timesteps Length of the temporal window used to construct sequences for the LSTM model (default: 11).
+#' @param spat_embedding_dim Dimension of the spatial embedding extracted via classical MDS (default: 10).
+#' @param time_method Method used for temporal modeling (currently supports "lstm").
+#' @param space_method Method used for spatial integration (currently supports "attention").
+#' @param batch_size Training batch size (default: 64).
+#' @param epochs Number of training epochs (default: 100).
+#' @param validation_split Proportion of training data used for validation (default: 0.2).
+#' @param n_iter Number of forward passes with dropout for uncertainty estimation (default: 100).
+
+#' @importFrom keras keras_model compile fit
+#' @importFrom tibble tibble
+#' @importFrom dplyr pull ungroup
+#' @importFrom stats predict sd quantile setNames
+
+#' @return A list with components:
+#' \describe{
+#'   \item{\code{model}}{The trained Keras model object.}
+#'   \item{\code{history}}{Training history returned by Keras.}
+#'   \item{\code{data}}{The input data frame augmented with predictions, prediction intervals, and anomaly indicators.}
+#' }
+#'
+#' @details
+#' The function uses bidirectional LSTMs followed by an attention mechanism to extract temporal features,
+#' and incorporates spatial information via embeddings obtained through classical multidimensional scaling (MDS).
+#' Uncertainty is quantified using Monte Carlo dropout, and anomalies are flagged when observed values fall
+#' outside the estimated 90% prediction interval.
+#'
+#' @references
+#' Santos-Fernandez, E., et al. (2025). *New Bayesian and deep learning spatio-temporal models can reveal anomalies in sensor data more effectively*. (in review).
+#'
+#' @examples
+#' \dontrun{
+#' # Load example data from package
+#' obs_path <- system.file("extdata", "obs_data.RDS", package = "SSNbayes")
+#' dm_path <- system.file("extdata", "Cov_mat.rds", package = "SSNbayes")
+#'
+#' obs_data <- readRDS(obs_path)
+#' dm <- readRDS(dm_path)
+#' spat_matrix <- dm$H
+#'
+#' # Fit the STARN model
+#' fit_starn <- starn(
+#'   formula = y_impute ~ X1 + X2 + X3,
+#'   data = obs_data,
+#'   time_col = 'date',
+#'   loc_col = 'locID',
+#'   spat_matrix = spat_matrix,
+#'   timesteps = 11,
+#'   time_method = "lstm",
+#'   space_method = "attention",
+#'   batch_size = 64,
+#'   epochs = 5,
+#'   validation_split = 0.2
+#' )
+#' }
+#'
+#' @export
+
+
+starn <- function(formula,
+                  data,
+                  spat_matrix,
+                  time_col,
+                  loc_col,
+                  timesteps = 11,
+                  spat_embedding_dim = 10,
+                  time_method = "lstm",
+                  space_method = "attention",
+                  batch_size = 64,
+                  epochs = 100,
+                  validation_split = 0.2,
+                  n_iter = 100) {
+
+  # Parse response and predictors from formula
+  response <- all.vars(formula)[1]
+  predictors <- all.vars(formula)[-1]
+  variables <- c(predictors, response)
+
+  # Rename columns for flexibility based on time_col and loc_col arguments
+  data <- data %>%
+    rename(date = {{time_col}}, locID = {{loc_col}})
+
+  # Prepare windowed data
+  create_window_array <- function(data, window_size) {
+    t(sapply(1:(length(data) - window_size + 1), function(x)
+      data[x:(x + window_size - 1)]))
+  }
+
+  windowed_data <- data %>%
+    group_by(locID) %>%
+    arrange(date) %>%
+    do({
+      windows <- lapply(variables, function(var) {
+        create_window_array(pull(., var), timesteps)
+      })
+      tibble(
+        locID = unique(.$locID),
+        windows = list(windows)
+      )
+    }) %>%
+    ungroup()
+
+  # Prepare input and output data
+  n_samples <- sum(sapply(windowed_data$windows, function(x) nrow(x[[1]])))
+  x_windows <- array(0, dim = c(n_samples, timesteps, length(variables) - 1))
+  y_adjusted <- numeric(n_samples)
+  locIDs <- numeric(n_samples)
+
+  sample_index <- 1
+  for (i in seq_along(windowed_data$windows)) {
+    loc_windows <- windowed_data$windows[[i]]
+    n_loc_samples <- nrow(loc_windows[[1]])
+    for (j in 1:(length(variables) - 1)) {
+      x_windows[sample_index:(sample_index + n_loc_samples - 1), , j] <- loc_windows[[j]]
+    }
+    y_adjusted[sample_index:(sample_index + n_loc_samples - 1)] <- loc_windows[[length(variables)]][, timesteps]
+    locIDs[sample_index:(sample_index + n_loc_samples - 1)] <- windowed_data$locID[i]
+    sample_index <- sample_index + n_loc_samples
+  }
+
+  unique_locIDs <- sort(unique(locIDs))
+  locID_to_int <- setNames(seq_along(unique_locIDs), unique_locIDs)
+  locIDs_int <- locID_to_int[as.character(locIDs)]
+  num_locIDs <- length(unique_locIDs)
+
+  # Split into train and test sets
+  x_train <- x_windows
+  y_train <- y_adjusted
+  locIDs_train <- locIDs_int
+
+  # Spatial embeddings using MDS
+  embedding_dim <- spat_embedding_dim
+  locID_embeddings_matrix <- cmdscale(spat_matrix, k = embedding_dim)
+  rownames(locID_embeddings_matrix) <- as.character(unique_locIDs)
+  locID_embeddings_train <- locID_embeddings_matrix[as.character(locIDs_train), ]
+
+  # Define custom dropout layer
+  DropoutAlways <- R6::R6Class(
+    "DropoutAlways",
+    inherit = KerasLayer,
+    public = list(
+      rate = NULL,
+      seed = NULL,
+      initialize = function(rate, seed = NULL) {
+        self$rate <- rate
+        self$seed <- seed
+      },
+      call = function(inputs, mask = NULL) {
+        K <- backend()
+        K$dropout(inputs, self$rate, seed = self$seed)
+      }
+    )
+  )
+
+  layer_dropout_always <- function(object, rate, seed = NULL, name = NULL, trainable = TRUE) {
+    create_layer(DropoutAlways, object, list(rate = rate, seed = seed, name = name, trainable = trainable))
+  }
+
+  # Model architecture
+  features <- length(predictors)
+  input_series <- layer_input(shape = c(timesteps, features), name = 'series_input')
+  input_embedding <- layer_input(shape = c(embedding_dim), name = 'embedding_input')
+
+  lstm1 <- input_series %>%
+    bidirectional(layer_lstm(units = 64, return_sequences = TRUE)) %>%
+    layer_dropout_always(rate = 0.3)
+  lstm2 <- lstm1 %>%
+    bidirectional(layer_lstm(units = 64, return_sequences = TRUE)) %>%
+    layer_dropout_always(rate = 0.3)
+
+  attention_layer <- function(x) {
+    a <- layer_dense(units = 1, activation = "tanh")(x)
+    a_probs <- layer_activation(a, activation = "softmax")
+    output_attention_mul <- layer_multiply(list(x, a_probs))
+    output <- output_attention_mul %>%
+      layer_lambda(f = function(z) k_sum(z, axis = 2))
+    output
+  }
+
+  attention <- lstm2 %>%
+    attention_layer()
+
+  concat <- layer_concatenate(list(attention, input_embedding))
+  dense1 <- concat %>%
+    layer_dense(units = 32, activation = "relu") %>%
+    layer_dropout_always(rate = 0.2)
+  output <- dense1 %>%
+    layer_dense(units = 1)
+
+  model <- keras_model(inputs = list(series_input = input_series, embedding_input = input_embedding), outputs = output)
+
+  # Compile and fit the model
+  model %>% compile(optimizer = optimizer_adam(learning_rate = 0.001), loss = "mse")
+  early_stopping <- callback_early_stopping(patience = 10, restore_best_weights = TRUE)
+  reduce_lr <- callback_reduce_lr_on_plateau(factor = 0.2, patience = 5, min_lr = 1e-6)
+
+  history <- model %>% fit(
+    x = list(series_input = x_train, embedding_input = as.matrix(locID_embeddings_train)),
+    y = y_train,
+    epochs = epochs,
+    batch_size = batch_size,
+    validation_split = validation_split,
+    callbacks = list(early_stopping, reduce_lr)
+  )
+
+  # Prediction with dropout
+  predict_with_dropout <- function(model, x_input, n_iter) {
+    preds <- replicate(n_iter, {
+      predict(model, x_input)
+    }, simplify = "array")
+
+    preds <- array(preds, dim = c(dim(preds)[1], n_iter))
+    preds_mean <- rowMeans(preds)
+    preds_sd <- apply(preds, 1, sd)
+    pred_low <- apply(preds, 1, function(x) quantile(x, 0.05))
+    pred_up <- apply(preds, 1, function(x) quantile(x, 0.95))
+
+    list(mean = preds_mean, sd = preds_sd, pred_low = pred_low, pred_up = pred_up)
+  }
+
+  K <- backend()
+  K$set_learning_phase(1)  # Set learning phase to training
+
+  x_train_input <- list(series_input = x_train, embedding_input = as.matrix(locID_embeddings_train))
+  results_train <- predict_with_dropout(model, x_train_input, n_iter = n_iter)
+
+  K$set_learning_phase(0)  # Reset learning phase to inference
+
+  data$dataset <- 'test'
+  data[1:nrow(x_train), ]$dataset <- 'train'
+
+  data <- data %>% arrange(locID)
+  data$pred <- data$pred_low <- data$pred_up <- NA
+
+  data[data$date %in% timesteps:max(unique(data$date)), ]$pred = results_train$mean
+  data[data$date %in% timesteps:max(unique(data$date)), ]$pred_low = results_train$pred_low
+  data[data$date %in% timesteps:max(unique(data$date)), ]$pred_up = results_train$pred_up
+
+  # Indicate anomalies
+  data$anom_pred_ind_k <- ifelse(data$yobs < data$pred_low | data$yobs > data$pred_up, 1, 0)
+  data$anom_pred_ind_k <- factor(data$anom_pred_ind_k, levels = c(1, 0))
+
+  list(model = model, history = history, data = data)
+}
+
+
+
+
+
+
+#' Bayesian Autoregressive Spatio-Temporal model (BARST)
+#'
+#' Fits a Bayesian spatio-temporal model with autoregressive temporal structure and stream-network-based spatial modeling using Stan. The method automatically selects spatial knots based on iterative RMSE performance and returns predictions with uncertainty and anomaly indicators.
+#'
+#' @param formula A formula specifying the response and covariates, e.g., \code{yobs ~ X1 + X2 + X3}.
+#' @param data A data frame with the full space-time dataset, including covariates and response.
+#' @param path Path to the folder containing SSN or spatial network objects and distance matrices.
+#' @param time_method A list specifying temporal structure, e.g., \code{list("ar", "date")}.
+#' @param space_method A list specifying spatial covariance function and structure, e.g., \code{list("use_ssn", c("Exponential.taildown"))}.
+#' @param iter Number of iterations per Stan run (default 3000).
+#' @param warmup Number of warmup iterations (default 1500).
+#' @param chains Number of Stan chains (default 3).
+#' @param refresh Frequency of Stan progress printout (default 100).
+#' @param loglik Logical, whether to return pointwise log-likelihood (default \code{FALSE}).
+#' @param ppd Logical, whether to return posterior predictive distributions (default \code{TRUE}).
+#' @param seed Random seed (default: 123).
+#' @param total_iter Number of RMSE-based refinement iterations (default: 10).
+#'
+#' @return A list with elements:
+#' \describe{
+#'   \item{\code{fit}}{The final Stan model object.}
+#'   \item{\code{pred}}{Data frame with posterior predictions, intervals, and anomaly indicators.}
+#'   \item{\code{data_list}}{List of Stan inputs used for the final model.}
+#'   \item{\code{replic}}{Matrix of knot selections across iterations.}
+#' }
+#'
+#' @export
+barst <- function(formula = yobs ~ X1 + X2 + X3,
+                  data,
+                  path,
+                  time_method = list("ar", "date"),
+                  space_method = list("use_ssn", c("Exponential.taildown")),
+                  iter = 3000,
+                  warmup = 1500,
+                  chains = 3,
+                  refresh = 100,
+                  loglik = FALSE,
+                  ppd = TRUE,
+                  seed = 123,
+                  total_iter = 10) {
+
+  stopifnot(requireNamespace("rstan"))
+  stopifnot(requireNamespace("dplyr"))
+  stopifnot(requireNamespace("Matrix"))
+  stopifnot(requireNamespace("stats"))
+
+
+  obs_data <- readRDS(file.path(path, "obs_data.rds"))
+  dm <- readRDS(file.path(path, "dist_mat.rds"))
+  h <- dm$H
+  fc <- dm$flow.con.mat
+
+  # Add some missing values (if desired)
+  obs_data[c(1000, 1500), "yobs"] <- NA
+
+  # Create sampling probabilities
+  fc_prob <- rowSums(fc) / sum(fc)
+
+  n <- length(unique(obs_data$locID))
+  time_points <- length(unique(obs_data$date))
+  m <- 30
+  set.seed(seed)
+
+  locs <- sort(sample(unique(obs_data$locID), m, replace = FALSE, prob = fc_prob))
+
+  D_star <- as.matrix(h[locs, locs])
+  D_site_star <- as.matrix(h[, locs])
+
+  options(na.action = 'na.pass')
+  out_list <- mylm(formula = formula, data = obs_data)
+  response <- out_list$y
+  design_matrix <- out_list$X
+
+  i_y_obs <- obs_data[!is.na(obs_data$yobs), ]$pid
+  i_y_mis <- obs_data[is.na(obs_data$yobs), ]$pid
+  y_obs <- response[!is.na(response)]
+
+  # Priors
+  K <- ncol(design_matrix)
+  beta_mean <- rep(0, K)
+  beta_sd <- rep(1, K)
+
+  hyperpars <- list(
+    eta = c(1, 1),
+    alpha = c(5, 1),
+    phi = c(0.5, 0.41),
+    sigma_nug = c(1, 1),
+    sigma = c(1, 1)
+  )
+
+  w_z_mean <- rep(1, m)
+  w_z_sd <- rep(1, m)
+  e_z_mean <- rep(1, n)
+  e_z_sd <- rep(1, n)
+
+  Xarray <- aperm(array(design_matrix, dim = c(n, time_points, K)), c(2, 1, 3))
+
+  # Initialize replicate matrix
+  replic <- matrix(0, m, total_iter + 2)
+  replic[, 1] <- locs
+
+  # Construct data list
+  data_list <- list(
+    obs_data = obs_data, T = time_points, replic = replic, niter = total_iter, iter_num = 1,
+    n = n, m = m, y_obs = y_obs, N_y_obs = length(i_y_obs), N_y_mis = length(i_y_mis),
+    i_y_obs = i_y_obs, i_y_mis = i_y_mis, D = as.matrix(h), K = K, X = Xarray,
+    beta_mean = beta_mean, beta_sd = beta_sd,
+    eta_mean = hyperpars$eta[1], eta_sd = hyperpars$eta[2],
+    alpha_mean = hyperpars$alpha[1], alpha_sd = hyperpars$alpha[2],
+    phi_mean = hyperpars$phi[1], phi_sd = hyperpars$phi[2],
+    sigma_nug_mean = hyperpars$sigma_nug[1], sigma_nug_sd = hyperpars$sigma_nug[2],
+    sigma_mean = hyperpars$sigma[1], sigma_sd = hyperpars$sigma[2],
+    w_z_mean = w_z_mean, w_z_sd = w_z_sd,
+    e_z_mean = e_z_mean, e_z_sd = e_z_sd
+  )
+
+  # Stan model
+  stan_code <- readChar(system.file("stan", "barst.stan", package = "SSNbayes"), nchars = 1e6)
+
+  for (jj in 10:total_iter) {
+    message("Running iteration: ", jj)
+
+    data_list$iter_num <- jj
+
+    current_iter <- if (jj == total_iter) iter else 100
+    current_warmup <- if (jj == total_iter) warmup else 50
+
+    fit <- rstan::stan(
+      model_code = stan_code,
+      data = data_list,
+      iter = current_iter,
+      warmup = current_warmup,
+      chains = chains,
+      refresh = refresh
+    )
+
+  }
+
+  list(fit = fit, pred = ypred, data_list = data_list, replic = replic)
+}
+
+
