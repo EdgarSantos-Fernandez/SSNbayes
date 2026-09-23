@@ -1,3 +1,8 @@
+# SSNbayes 0.1.2
+
+* Added the Boise River stream-network dataset and associated observation data used in Santos-Fernandez et al. (2022).
+* Added documentation and reproducible examples showing how to import the Boise SSN and observation data.
+
 # SSNbayes 0.1.0
 
 * This version brings 2 main updates to the package.

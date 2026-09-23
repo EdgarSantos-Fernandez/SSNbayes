@@ -1,0 +1,354 @@
+<metadata>
+	<idinfo>
+		<citation>
+			<citeinfo>
+				<origin>U.S. Environmental Protection Agency (USEPA) and the U.S. Geological Survey (USGS).</origin>
+				<pubdate>2012</pubdate>
+				<title>NHDPlus Reconditioned Streams for Production Unit 17b</title>
+				<edition>1.0</edition>
+				<geoform>vector digital data, raster digital data, tabular digital data</geoform>
+				<onlink>http://www.fs.fed.us/rm/boise/AWAE/projects/SpatialStreamNetworks.shtml</onlink>
+				<ftname Sync="TRUE">edges</ftname><origin>USDA Forest Service - Boise Aquatic Sciences Lab</origin><lworkcit><citeinfo><pubdate>2012</pubdate></citeinfo></lworkcit></citeinfo>
+		</citation>
+		<descript>
+			<abstract>NHDPlus is an integration of the medium resolution (1:100,000) National Hydrography Dataset (NHD), the National Elevation Dataset (NED), and the Watershed Boundary Dataset (WBD). NHDPlus includes improved networking, naming, and numerous attributes. NHDPlus also includes elevation-derived catchments (drainage areas). Refer to the NHDPlus User Guide for more information.  http://www.horizon-systems.com/nhdplus/documentation.php
+
+This reconditioned data set has been modified from the original NHDPlus data to ensure stream connectivity, which is required to fit spatial statistical models to stream network data. Braided channels, most canals, and disconnected streams were deleted from NHDPlus. Additionally, where three or more segments converged into a single downstream segment the stream layer was manually edited to offset two of the three segments. The FLoWS and STARS toolboxes were used to identify topological errors. 
+
+&lt;http://www.fs.fed.us/rm/boise/AWAE/projects/SpatialStreamNetworks.shtml&gt; 
+</abstract>
+			<purpose>Spatial statistical models have been developed to model data along stream networks (Ver Hoef and Peterson 2010), however, it is extremely critical that the streams data are topologically correct to ensure that hydrologic distances and spatial relationships are calculated properly. Topological errors are common in GIS data and must be corrected, and streams must be digitized in the downstream direction, before the models are run. The FLoWS and STARS toolboxes were used to identify topological errors.
+
+&lt;http://www.fs.fed.us/rm/boise/AWAE/projects/SpatialStreamNetworks.shtml&gt;
+</purpose>
+			<supplinf>For more information, refer to the NHDPlus Users Guide.
+
+Other information about this project can be found at: http://www.fs.fed.us/rm/boise/AWAE/projects/SpatialStreamNetworks.shtml</supplinf>
+			<langdata Sync="TRUE">en</langdata></descript>
+		<timeperd>
+			<timeinfo>
+				<sngdate>
+					<caldate>2012</caldate>
+				</sngdate>
+			</timeinfo>
+			<current>publication date</current>
+		</timeperd>
+		<status>
+			<progress>Complete</progress>
+			<update>Irregular</update>
+		</status>
+		<spdom>
+			<bounding>
+				<westbc>
+-160.5</westbc>
+				<eastbc>
+-66.5</eastbc>
+				<northbc>
+49.5</northbc>
+				<southbc>
+18.5</southbc>
+			</bounding>
+			<lboundng><leftbc Sync="TRUE">1111794.644248</leftbc><rightbc Sync="TRUE">1630395.559866</rightbc><bottombc Sync="TRUE">1515826.439036</bottombc><topbc Sync="TRUE">2099421.715506</topbc></lboundng><minalti Sync="TRUE">0.000000</minalti><maxalti Sync="TRUE">0.000000</maxalti></spdom>
+		<keywords>
+			<theme>
+				<themekt>none</themekt>
+				<themekey>Stream / River</themekey>
+				<themekey>Lake / Pond</themekey>
+				<themekey>Canal / Ditch</themekey>
+				<themekey>Reach</themekey>
+				<themekey>Watershed</themekey>
+				<themekey>GIS</themekey>
+				<themekey>USGS</themekey>
+				<themekey>EPA</themekey>
+				<themekey>Elevation</themekey>
+				<themekey>NLCD</themekey>
+				<themekey>National Elevation Dataset</themekey>
+				<themekey>NED</themekey>
+				<themekey>National Hydrography Dataset</themekey>
+				<themekey>NHD</themekey>
+				<themekey>NHDPlus</themekey>
+				<themekey>Stream flow</themekey>
+				<themekey>Stream velocity</themekey>
+				<themekey>Spatially Referenced Regressions on Watershed Attributes</themekey>
+				<themekey>StreamStats</themekey>
+				<themekey>Hydrologic modeling</themekey>
+				<themekey>River Coding Systems</themekey>
+				<themekey>Hydrography</themekey>
+				<themekey>Networked Streams</themekey><themekey>USDA Forest Service</themekey><themekey>Spatial Statistical Modeling on Stream Networks</themekey><themekey>STARS</themekey><themekey>GNLCC</themekey><themekey>Great Northern Landscape Conservation Cooperative</themekey><themekey>NorWeST regional stream temperature database and model</themekey></theme>
+			<theme>
+				<themekt>ISO 19115 Topic Category</themekt>
+				<themekey>inlandWaters</themekey>
+			</theme>
+			<place>
+				<placekey>United States of America</placekey>
+				<placekey>United States</placekey>
+				<placekey>USA</placekey>
+				<placekey>California</placekey>
+				<placekey>Colorado</placekey>
+				<placekey>Idaho</placekey>
+				<placekey>Montana</placekey>
+				<placekey>Nevada</placekey>
+				<placekey>Oregon</placekey>
+				<placekey>Utah</placekey>
+				<placekey>Washington</placekey>
+				<placekey>Wyoming</placekey>
+			</place>
+		</keywords>
+		<accconst>None.</accconst>
+		<useconst>None.
+
+Acknowledgement of the originating agencies (USEPA and USGS) would be appreciated in products derived from these data.</useconst>
+		<ptcontac>
+			<cntinfo>
+				<cntorgp>
+					<cntorg>USDA Forest Service - Boise Aquatic Sciences Lab </cntorg>
+				</cntorgp>
+				<cntaddr><addrtype>mailing and physical address</addrtype><address>322 East Front St; Suite 401</address><city>Boise</city><state>ID</state><postal>83702</postal><country>USA</country></cntaddr></cntinfo>
+		</ptcontac>
+		<native>Microsoft Windows 2000 Version 5.0 (Build 2195) Service Pack 4; ESRI ArcCatalog 9.0.00</native>
+		<natvform Sync="TRUE">Shapefile</natvform></idinfo>
+	<dataqual>
+		<lineage>
+			<srcinfo>
+				<srccite>
+					<citeinfo>
+						<origin>U.S. Geological Survey (USGS) and the U.S. Environmental Protection Agency (USEPA)</origin>
+						<pubdate>none</pubdate>
+						<title>National Hydrography Dataset  (NHD) Medium Resolution</title>
+						<edition>none</edition>
+						<geoform>vector digital data</geoform>
+						<onlink>http://nhd.usgs.gov</onlink>
+					</citeinfo>
+				</srccite>
+				<srcscale>1:100,000</srcscale>
+				<srctime>
+					<timeinfo>
+						<sngdate>
+							<caldate>2005</caldate>
+						</sngdate>
+					</timeinfo>
+					<srccurr>The source NHD is a snapshot of the dataset accessed on 1/31/2004 and updated throughout 2004 and 2005.</srccurr>
+				</srctime>
+				<srccitea>NHD</srccitea>
+				<srccontr>A snapshot of the NHD was used as the baseline framework from which enhancements to the network were built upon. Enhancements include feature names, network connectivity and network flow relationships. This enhanced NHD version was then used in conjunction with the NED, and WBD (where applicable) to create a HydroDEM, for generation of the catchment Grid/shapefile, and flow direction/accumulation Grids. The enhanced NHD was used to compute and assign flowline Value Added Attributes (VAAs) to this network.</srccontr>
+			</srcinfo>
+			<srcinfo>
+				<srccite>
+					<citeinfo>
+						<origin>U.S. Geological Survey (USGS), EROS Data Center</origin>
+						<pubdate>1999</pubdate>
+						<title>National Elevation Dataset  (NED)</title>
+						<geoform>raster digital data</geoform>
+						<pubinfo>
+							<pubplace>Sioux Falls, SD</pubplace>
+							<publish>U.S. Geological Survey</publish>
+						</pubinfo>
+						<onlink>http://ned.usgs.gov/</onlink>
+					</citeinfo>
+				</srccite>
+				<srctime>
+					<timeinfo>
+						<sngdate>
+							<caldate>June 10, 2004</caldate>
+						</sngdate>
+					</timeinfo>
+					<srccurr>Date data was accessed</srccurr>
+				</srctime>
+				<srccitea>NED</srccitea>
+				<srccontr>NED data used in combination with NHD, WBD (where applicable) to create a HydroDEM, to generate NHDPlus Catchments, surface flow direction and accumulation Grids. Stream elevations from NED which were used to help derive stream slope and stream velocity.</srccontr>
+			</srcinfo>
+			<srcinfo>
+				<srccite>
+					<citeinfo>
+						<origin>U.S. Geological Survey (USGS)</origin>
+						<pubdate>19990525</pubdate>
+						<title>National Land Cover Dataset 1992  (NLCD 1992)</title>
+						<edition>1</edition>
+						<geoform>raster digital data</geoform>
+						<pubinfo>
+							<pubplace>Sioux Falls, SD</pubplace>
+							<publish>U.S. Geological Survey</publish>
+						</pubinfo>
+						<onlink>http://landcover.usgs.gov/natllandcover.php</onlink>
+					</citeinfo>
+				</srccite>
+				<srctime>
+					<timeinfo>
+						<rngdates>
+							<begdate>early 1990's</begdate>
+							<enddate>mid 1990's</enddate>
+						</rngdates>
+					</timeinfo>
+					<srccurr>ground condition</srccurr>
+				</srctime>
+				<srccitea>NLCD 1992</srccitea>
+				<srccontr>Source dataset used to assign catchment and flowline land cover attributes.</srccontr>
+			</srcinfo>
+			<srcinfo>
+				<srccite>
+					<citeinfo>
+						<origin>Chris Daly and George Taylor of the Spatial Climate Analysis Service at Oregon State University.</origin>
+						<pubdate>200008</pubdate>
+						<title>United States Average Annual Precipitation, 1961-90</title>
+						<geoform>raster digital data</geoform>
+						<pubinfo>
+							<pubplace>Corvallis, Oregon, USA</pubplace>
+							<publish>Spatial Climate Analysis Service at Oregon State University (SCAS/OSU)</publish>
+						</pubinfo>
+						<othercit>This dataset from the PRISM model, developed by Chris Daly of SCAS/OSU.</othercit>
+						<onlink>http://www.ocs.orst.edu/prism/</onlink>
+					</citeinfo>
+				</srccite>
+				<srctime>
+					<timeinfo>
+						<rngdates>
+							<begdate>19610101</begdate>
+							<enddate>19901231</enddate>
+						</rngdates>
+					</timeinfo>
+					<srccurr>Climatological period from which the point observations were taken.</srccurr>
+				</srctime>
+				<srccontr>Source dataset used to compute mean annual precipitation for each catchment and area weighted precipitation for each flowline. Weighted precipitation values for each flowline was used as a variable in a Vogel equation for estimating mean annual streamflow. The Vogel estimates of mean annual flow were used as a source variable in a Jobson equation to compute mean annual stream velocity estimates.</srccontr>
+			</srcinfo>
+			<srcinfo>
+				<srccite>
+					<citeinfo>
+						<origin>Chris Daly and George Taylor of the Spatial Climate Analysis Service at Oregon State University.</origin>
+						<pubdate>200008</pubdate>
+						<title>United States Annual Mean Temperature, 1961-90</title>
+						<edition>1</edition>
+						<geoform>raster digital data</geoform>
+						<pubinfo>
+							<pubplace>Corvallis, Oregon, USA</pubplace>
+							<publish>Spatial Climate Analysis Service at Oregon State University (SCAS/OSU)</publish>
+						</pubinfo>
+						<othercit>This dataset from the PRISM model, developed by Chris Daly of SCAS/OSU.</othercit>
+						<onlink>http://www.ocs.orst.edu/prism/</onlink>
+					</citeinfo>
+				</srccite>
+				<srctime>
+					<timeinfo>
+						<rngdates>
+							<begdate>19610101</begdate>
+							<enddate>19901231</enddate>
+						</rngdates>
+					</timeinfo>
+					<srccurr>Climatological period from which the point observations were taken.</srccurr>
+				</srctime>
+				<srccontr>Source dataset used to compute mean annual temperature for each catchment and area weighted mean annual temperature for each flowline. Weighted mean annual temperature values for each flowline was used as a variable in a Vogel equation for estimating mean annual streamflow. The Vogel estimates of mean annual flow were used as a source variable in a Jobson equation to compute mean annual stream velocity estimates.</srccontr>
+			</srcinfo>
+			<srcinfo>
+				<srccite>
+					<citeinfo>
+						<origin>U.S. Department of Agriculture, Natural Resources Conservation Service (NRCS) and the U.S. Geological Survey (USGS)</origin>
+						<pubdate>multiple dates</pubdate>
+						<title>Watershed Boundary Dataset (WBD)</title>
+						<geoform>vector digital data</geoform>
+						<othercit>Only certified WBD was included for use in HydroDEM production. These data are tiled by U.S. State, therefore only selected states with full certification were used. The publication date for each state's WBD varies. (See Source Time Period of Content)</othercit>
+						<onlink>http://www.ncgc.nrcs.usda.gov/products/datasets/watershed/</onlink>
+					</citeinfo>
+				</srccite>
+				<srcscale>1:24,000</srcscale>
+				<srctime>
+					<timeinfo>
+						<mdattim>
+							<sngdate>
+								<caldate>Alabama, 2004</caldate>
+							</sngdate>
+							<sngdate>
+								<caldate>Connecticut, 2001</caldate>
+							</sngdate>
+							<sngdate>
+								<caldate>Georgia, 2003</caldate>
+							</sngdate>
+							<sngdate>
+								<caldate>Illinois, 2002</caldate>
+							</sngdate>
+							<sngdate>
+								<caldate>Massachusetts, 2001</caldate>
+							</sngdate>
+							<sngdate>
+								<caldate>Maryland, 2003</caldate>
+							</sngdate>
+							<sngdate>
+								<caldate>New Hampshire, 2001</caldate>
+							</sngdate>
+							<sngdate>
+								<caldate>Utah, 2003</caldate>
+							</sngdate>
+							<sngdate>
+								<caldate>Vermont, 2003</caldate>
+							</sngdate>
+							<sngdate>
+								<caldate>Wyoming, 2002</caldate>
+							</sngdate>
+						</mdattim>
+					</timeinfo>
+					<srccurr>publication dates</srccurr>
+				</srctime>
+				<srccitea>WBD</srccitea>
+				<srccontr>12-digit subwatershed divides from the Watershed Boundary Dataset (WBD)
+were used (for states where certified WBD was available) as a ridgeline
+enforcment factor in a process called "walling" in the production of HydroDEMs. The HydroDEMs are the source data from which NHD Catchments are delineated from. Catchments with coincident boundaries with the WBD are in conformance with the WBD. NHDPlus Flow Direction and Accumulation Grids are hydrologic derivative products of the HydroDEMs.</srccontr>
+			</srcinfo>
+			<srcinfo>
+				<srccite>
+					<citeinfo>
+						<origin>David W. Stewart, Alan Rea and David M. Wolock</origin>
+						<pubdate>April 2006</pubdate>
+						<title>USGS Streamgages Linked to the Medium Resolution NHD</title>
+						<geoform>vector digital data</geoform>
+						<serinfo>
+							<sername>Data Series</sername>
+							<issue>DS-195</issue>
+						</serinfo>
+						<pubinfo>
+							<pubplace>Reston, Va</pubplace>
+							<publish>U.S. Geological Survey</publish>
+						</pubinfo>
+						<onlink>http://water.usgs.gov/GIS/metadata/usgswrd/XML/streamgages.xml</onlink>
+					</citeinfo>
+				</srccite>
+				<srctime>
+					<timeinfo>
+						<sngdate>
+							<caldate>April 20, 2004</caldate>
+						</sngdate>
+					</timeinfo>
+					<srccurr>Date of data extract from NWIS</srccurr>
+				</srctime>
+				<srccontr>Location of gages were spatially referenced to the NHDPlus flowlines to create a gaging station point event table, where for each gage in the database, the corresponding NHD Reachcode and measure are recorded. An early version of the dataset was also used for the QA/QC of NHDPlus cumulative drainage areas and estimates of mean annual stream flow.</srccontr>
+			</srcinfo>
+			<procstep><procdesc Sync="TRUE">Dataset copied.</procdesc><srcused>http://www.horizon-systems.com/nhdplus/HSC-wth17.php</srcused><procdate Sync="TRUE">20120612</procdate><proctime Sync="TRUE">10374500</proctime></procstep><procstep><proccont><cntinfo><cntorgp><cntorg>USDA Forest Service Boise Aquatic Sciences Lab</cntorg></cntorgp></cntinfo></proccont><procdesc>These NHD Plus stream hydrography layers for the Northwest U.S. have been edited and reconditioned to work consistently with the SSN package for implementing the spatial statistical stream models. Edits were performed using the STARS toolkit and consisted of removing unconnected stream segments and reducing braided stream segments to single-threaded streams. </procdesc><procdate>2012</procdate></procstep><procstep><procdesc Sync="TRUE">Dataset copied.</procdesc><srcused Sync="TRUE"></srcused><procdate Sync="TRUE">20120806</procdate><proctime Sync="TRUE">08542300</proctime></procstep><procstep><procdesc Sync="TRUE">Dataset copied.</procdesc><srcused Sync="TRUE"></srcused><procdate Sync="TRUE">20120806</procdate><proctime Sync="TRUE">09040900</proctime></procstep><procstep><procdesc Sync="TRUE">Dataset copied.</procdesc><srcused Sync="TRUE">F:\WorkSpace\GNLCC\LSNstreamLayer\17b_finalLSN</srcused><procdate Sync="TRUE">20120817</procdate><proctime Sync="TRUE">16024500</proctime></procstep></lineage>
+	</dataqual>
+	<distinfo>
+		<distrib>
+			<cntinfo>
+				<cntorgp>
+					<cntorg>USDA Forest Service - Boise Aquatic Sciences Lab</cntorg>
+				</cntorgp>
+				<cntinst>
+http://www.fs.fed.us/rm/boise/AWAE/projects/SpatialStreamNetworks.shtml</cntinst></cntinfo>
+		</distrib>
+		<distliab>Although this data set has been used by the U.S. Government, no warranty expressed or implied is made by the U.S. Government as to the accuracy of the data and related materials. The act of distribution shall not constitute any such warranty, and no responsibility is assumed by the U.S. Government in the use of this data, software, or 
+related materials.
+ 
+Any use of trade, product, or firm names is for descriptive purposes only and does not imply endorsement by the U.S. Government.</distliab>
+		<stdorder>
+			<digform>
+				<digtinfo>
+					<filedec>.zip</filedec>
+					<transize Sync="TRUE">0.000</transize><dssize Sync="TRUE">0.000</dssize></digtinfo>
+				<digtopt>
+					<onlinopt>
+					</onlinopt>
+				</digtopt>
+			</digform>
+		</stdorder>
+		<resdesc>Downloadable Data
+
+http://www.fs.fed.us/rm/boise/AWAE/projects/SpatialStreamNetworks.shtml</resdesc></distinfo>
+	<metainfo>
+		<metd>20120711</metd>
+		<langmeta Sync="TRUE">en</langmeta><metstdn Sync="TRUE">FGDC Content Standards for Digital Geospatial Metadata</metstdn><metstdv Sync="TRUE">FGDC-STD-001-1998</metstdv><mettc Sync="TRUE">local time</mettc><metc><cntinfo><cntorgp><cntorg>USDA Forest Service - Boise Aquatic Sciences Lab </cntorg></cntorgp><cntaddr><addrtype>mailing and physical address</addrtype><city>Boise</city><state>ID</state><postal>83702</postal><address>322 East Front St.; Suite 401</address></cntaddr></cntinfo></metc></metainfo>
+	<dataIdInfo><envirDesc Sync="TRUE"> Version 6.2 (Build 9200) ; Esri ArcGIS 10.5.1.7333</envirDesc><dataLang><languageCode Sync="TRUE" value="eng"></languageCode><countryCode value="USA" Sync="TRUE"></countryCode></dataLang><idCitation><resTitle Sync="TRUE">edges</resTitle><presForm><PresFormCd Sync="TRUE" value="005"></PresFormCd></presForm></idCitation><spatRpType><SpatRepTypCd Sync="TRUE" value="001"></SpatRepTypCd></spatRpType><dataExt><geoEle><GeoBndBox esriExtentType="native"><westBL Sync="TRUE">1111794.644248</westBL><eastBL Sync="TRUE">1630395.559866</eastBL><northBL Sync="TRUE">2099421.715506</northBL><southBL Sync="TRUE">1515826.439036</southBL><exTypeCode Sync="TRUE">1</exTypeCode></GeoBndBox></geoEle></dataExt><geoBox esriExtentType="decdegrees"><westBL Sync="TRUE">-119.291978</westBL><eastBL Sync="TRUE">-112.220218</eastBL><northBL Sync="TRUE">49.045595</northBL><southBL Sync="TRUE">43.691324</southBL><exTypeCode Sync="TRUE">1</exTypeCode></geoBox></dataIdInfo><mdLang><languageCode Sync="TRUE" value="eng"></languageCode><countryCode value="USA" Sync="TRUE"></countryCode></mdLang><mdStanName Sync="TRUE">ISO 19115 Geographic Information - Metadata</mdStanName><mdStanVer Sync="TRUE">DIS_ESRI1.0</mdStanVer><mdChar><CharSetCd Sync="TRUE" value="006"></CharSetCd></mdChar><mdHrLv><ScopeCd Sync="TRUE" value="005"></ScopeCd></mdHrLv><mdHrLvName Sync="TRUE">dataset</mdHrLvName><distInfo><distributor><distorTran><onLineSrc><orDesc Sync="TRUE">002</orDesc><linkage Sync="TRUE">file://\\SETH-PC\D$\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.ssn\edges.shp</linkage><protocol Sync="TRUE">Local Area Network</protocol></onLineSrc><transSize Sync="TRUE">0.000</transSize></distorTran><distorFormat><formatName Sync="TRUE">Shapefile</formatName></distorFormat></distributor><distFormat><formatName Sync="TRUE">Shapefile</formatName></distFormat><distTranOps><transSize Sync="TRUE">0.000</transSize></distTranOps></distInfo><spdoinfo><direct Sync="TRUE">Vector</direct><ptvctinf><esriterm Name="edges"><efeatyp Sync="TRUE">Simple</efeatyp><efeageom code="3" Sync="TRUE"></efeageom><esritopo Sync="TRUE">FALSE</esritopo><efeacnt Sync="TRUE">0</efeacnt><spindex Sync="TRUE">FALSE</spindex><linrefer Sync="TRUE">FALSE</linrefer></esriterm></ptvctinf></spdoinfo><spref><horizsys><cordsysn><geogcsn Sync="TRUE">GCS_North_American_1983</geogcsn><projcsn Sync="TRUE">GNLCC</projcsn></cordsysn><planar><planci><plance Sync="TRUE">coordinate pair</plance><plandu Sync="TRUE">meters</plandu><coordrep><absres Sync="TRUE">0.000000</absres><ordres Sync="TRUE">0.000000</ordres></coordrep></planci></planar><geodetic><horizdn Sync="TRUE">North American Datum of 1983</horizdn><ellips Sync="TRUE">Geodetic Reference System 80</ellips><semiaxis Sync="TRUE">6378137.000000</semiaxis><denflat Sync="TRUE">298.257222</denflat></geodetic></horizsys><vertdef><altsys><altenc Sync="TRUE">Explicit elevation coordinate included with horizontal coordinates</altenc><altres Sync="TRUE">0.000100</altres></altsys></vertdef></spref><refSysInfo><RefSystem><refSysID><identCode Sync="TRUE" code="0">GNLCC</identCode></refSysID></RefSystem></refSysInfo><spatRepInfo><VectSpatRep><geometObjs Name="edges"><geoObjTyp><GeoObjTypCd value="002" Sync="TRUE"></GeoObjTypCd></geoObjTyp><geoObjCnt Sync="TRUE">0</geoObjCnt></geometObjs><topLvl><TopoLevCd value="001" Sync="TRUE"></TopoLevCd></topLvl></VectSpatRep></spatRepInfo><eainfo><detailed Name="edges"><enttyp><enttypl Sync="TRUE">edges</enttypl><enttypt Sync="TRUE">Feature Class</enttypt><enttypc Sync="TRUE">0</enttypc></enttyp><attr><attrlabl Sync="TRUE">FID</attrlabl><attalias Sync="TRUE">FID</attalias><attrtype Sync="TRUE">OID</attrtype><attwidth Sync="TRUE">4</attwidth><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale><attrdef Sync="TRUE">Internal feature number.</attrdef><attrdefs Sync="TRUE">Esri</attrdefs><attrdomv><udom Sync="TRUE">Sequential unique whole numbers that are automatically generated.</udom></attrdomv></attr><attr><attrlabl Sync="TRUE">Shape</attrlabl><attalias Sync="TRUE">Shape</attalias><attrtype Sync="TRUE">Geometry</attrtype><attwidth Sync="TRUE">0</attwidth><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale><attrdef Sync="TRUE">Feature geometry.</attrdef><attrdefs Sync="TRUE">ESRI</attrdefs><attrdomv><udom Sync="TRUE">Coordinates defining the features.</udom></attrdomv></attr><attr><attrlabl Sync="TRUE">COMID</attrlabl><attalias Sync="TRUE">COMID</attalias><attrtype Sync="TRUE">Integer</attrtype><attwidth Sync="TRUE">10</attwidth><attrdef>Common identifier of the NHD feature</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">10</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">FDATE</attrlabl><attalias Sync="TRUE">FDATE</attalias><attrtype Sync="TRUE">Date</attrtype><attwidth Sync="TRUE">8</attwidth><attrdef>Feature Currency Date</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">RESOLUTION</attrlabl><attalias Sync="TRUE">RESOLUTION</attalias><attrtype Sync="TRUE">String</attrtype><attwidth Sync="TRUE">7</attwidth><attrdef>Always "Medium" (i.e., 1:100K scale)</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">GNIS_ID</attrlabl><attalias Sync="TRUE">GNIS_ID</attalias><attrtype Sync="TRUE">String</attrtype><attwidth Sync="TRUE">10</attwidth><attrdef>Geographic Names Information System ID for the value in GNIS_Name</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">GNIS_NAME</attrlabl><attalias Sync="TRUE">GNIS_NAME</attalias><attrtype Sync="TRUE">String</attrtype><attwidth Sync="TRUE">65</attwidth><attrdef>Feature Name from the Geographic Names Information System</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">LENGTHKM</attrlabl><attalias Sync="TRUE">LENGTHKM</attalias><attrtype Sync="TRUE">Double</attrtype><attwidth Sync="TRUE">19</attwidth><attrdef>Feature length in kilometers</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">REACHCODE</attrlabl><attalias Sync="TRUE">REACHCODE</attalias><attrtype Sync="TRUE">String</attrtype><attwidth Sync="TRUE">14</attwidth><attrdef>Reach Code assigned to feature or reach on which an event is located</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">FLOWDIR</attrlabl><attalias Sync="TRUE">FLOWDIR</attalias><attrtype Sync="TRUE">String</attrtype><attwidth Sync="TRUE">15</attwidth><attrdef>Flow direction is "WithDigitized" or "Uninitialized"</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">WBAREACOMI</attrlabl><attalias Sync="TRUE">WBAREACOMI</attalias><attrtype Sync="TRUE">Integer</attrtype><attwidth Sync="TRUE">10</attwidth><attrdef>ComID of an NHD polygonal water feature through which an NHD "Artificial Path" flowline flows</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">10</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">FTYPE</attrlabl><attalias Sync="TRUE">FTYPE</attalias><attrtype Sync="TRUE">String</attrtype><attwidth Sync="TRUE">24</attwidth><attrdef>NHD Feature Type</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">FCODE</attrlabl><attalias Sync="TRUE">FCODE</attalias><attrtype Sync="TRUE">Integer</attrtype><attwidth Sync="TRUE">10</attwidth><attrdef>Numeric codes for various feature attributes; definitions for codes found in the NHDFCode lookup table</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">10</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">CUMdrainAG</attrlabl><attalias Sync="TRUE">CUMdrainAG</attalias><attrtype Sync="TRUE">Double</attrtype><attwidth Sync="TRUE">19</attwidth><attrdef>Cumulative drainage area in square kilometers(sq km) at bottom of flowline</attrdef><attrdefs>NHDPlus User Guide</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">HUC3</attrlabl><attalias Sync="TRUE">HUC3</attalias><attrtype Sync="TRUE">Double</attrtype><attwidth Sync="TRUE">19</attwidth><attrdef>Hydrologic Unit Code 3 number - derived from Reach Code (not HUC3 boundaries)</attrdef><attrdefs>USFS RMRS Boise Aquatic Sciences Lab</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">HUC4</attrlabl><attalias Sync="TRUE">HUC4</attalias><attrtype Sync="TRUE">Double</attrtype><attwidth Sync="TRUE">19</attwidth><attrdef>Hydrologic Unit Code 4 number - derived from Reach Code (not HUC4 boundaries)</attrdef><attrdefs>USFS RMRS Boise Aquatic Sciences Lab</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">PRODUNIT</attrlabl><attalias Sync="TRUE">PRODUNIT</attalias><attrtype Sync="TRUE">String</attrtype><attwidth Sync="TRUE">5</attwidth><attrdef>NHD Plus production unit number</attrdef><attrdefs>USFS RMRS Boise Aquatic Sciences Lab</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">SourceSegm</attrlabl><attalias Sync="TRUE">SourceSegm</attalias><attrtype Sync="TRUE">String</attrtype><attwidth Sync="TRUE">2</attwidth><attrdefs>USFS RMRS Boise Aquatic Sciences Lab</attrdefs><attrdef>Is the segment connected to a source node?</attrdef><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">PseudoSegm</attrlabl><attalias Sync="TRUE">PseudoSegm</attalias><attrtype Sync="TRUE">String</attrtype><attwidth Sync="TRUE">2</attwidth><attrdef>Is the segment connected to a pseudo node?</attrdef><attrdefs>USFS RMRS Boise Aquatic Sciences Lab</attrdefs><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">Shape_Leng</attrlabl><attalias Sync="TRUE">Shape_Leng</attalias><attrtype Sync="TRUE">Double</attrtype><attwidth Sync="TRUE">19</attwidth><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">rid</attrlabl><attalias Sync="TRUE">rid</attalias><attrtype Sync="TRUE">Integer</attrtype><attwidth Sync="TRUE">10</attwidth><atprecis Sync="TRUE">10</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">upDist</attrlabl><attalias Sync="TRUE">upDist</attalias><attrtype Sync="TRUE">Double</attrtype><attwidth Sync="TRUE">19</attwidth><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">areaPI</attrlabl><attalias Sync="TRUE">areaPI</attalias><attrtype Sync="TRUE">Double</attrtype><attwidth Sync="TRUE">19</attwidth><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">afvArea</attrlabl><attalias Sync="TRUE">afvArea</attalias><attrtype Sync="TRUE">Double</attrtype><attwidth Sync="TRUE">19</attwidth><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">netID</attrlabl><attalias Sync="TRUE">netID</attalias><attrtype Sync="TRUE">Integer</attrtype><attwidth Sync="TRUE">10</attwidth><atprecis Sync="TRUE">10</atprecis><attscale Sync="TRUE">0</attscale></attr><attr><attrlabl Sync="TRUE">Length</attrlabl><attalias Sync="TRUE">Length</attalias><attrtype Sync="TRUE">Single</attrtype><attwidth Sync="TRUE">13</attwidth><atprecis Sync="TRUE">0</atprecis><attscale Sync="TRUE">0</attscale></attr></detailed></eainfo><Esri><SyncDate>20200808</SyncDate><SyncTime>22411200</SyncTime><ModDate>20200808</ModDate><ModTime>22411200</ModTime><DataProperties><lineage><Process ToolSource="C:\Program Files\ArcGIS\Desktop10.0\ArcToolbox\Toolboxes\Data Management Tools.tbx\CalculateField" Date="20120517" Time="095118">CalculateField 17b_ReconditionedNHD_Plus PRODUNIT "17b" VB #</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20120612" Time="105140">AddField R:\Workspace\GNLCC\WorkingData\StreamEditing\ReconditionedNHD_PlusProductionUnits_HUC3-4Code\Temp\TempStreams.shp HUC3 LONG 10 # # # NON_NULLABLE NON_REQUIRED # R:\Workspace\GNLCC\WorkingData\StreamEditing\ReconditionedNHD_PlusProductionUnits_HUC3-4Code\Temp\TempStreams.shp</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20120612" Time="105231">AddField R:\Workspace\GNLCC\WorkingData\StreamEditing\ReconditionedNHD_PlusProductionUnits_HUC3-4Code\Temp\TempStreams.shp HUC4 LONG 10 # # # NON_NULLABLE NON_REQUIRED # R:\Workspace\GNLCC\WorkingData\StreamEditing\ReconditionedNHD_PlusProductionUnits_HUC3-4Code\Temp\TempStreams.shp</Process><Process ToolSource="C:\Program Files\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\CopyFeatures" Date="20120612" Time="105500">CopyFeatures R:\Workspace\GNLCC\WorkingData\StreamEditing\ReconditionedNHD_PlusProductionUnits_HUC3-4Code\Temp\TempStreams.shp R:\Workspace\GNLCC\WorkingData\StreamEditing\ReconditionedNHD_PlusProductionUnits_HUC3-4Code\Temp\Temp.shp # 0 0 0</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\CopyFeatures" Date="20121106" Time="074817">CopyFeatures D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\GIS\Salmon_streams.shp D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges # 0 0 0</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20121106" Time="074817">AddField D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges rid LONG 12 12 # # NULLABLE NON_REQUIRED # D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\CalculateField" Date="20121106" Time="074819">CalculateField D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges rid "[OBJECTID] - 1" VB # D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20121106" Time="085050">AddField D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges upDist DOUBLE # # # # NULLABLE NON_REQUIRED # D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20121106" Time="085051">SelectLayerByAttribute edgeLyr ADD_TO_SELECTION "Shape_Length IS NOT NULL" edgeLyr</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\CalculateField" Date="20121106" Time="085053">CalculateField edgeLyr upDist [Shape_Length] VB # edgeLyr</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20121106" Time="085055">SelectLayerByAttribute edgeLyr CLEAR_SELECTION # edgeLyr</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20121106" Time="091859">AddField D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges areaPI DOUBLE # # # # NULLABLE NON_REQUIRED # D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20121106" Time="093719">AddField D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges afvArea DOUBLE # # # # NULLABLE NON_REQUIRED # D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20121106" Time="093720">SelectLayerByAttribute edgeLyr ADD_TO_SELECTION "areaPI IS NOT NULL" edgeLyr</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\CalculateField" Date="20121106" Time="093724">CalculateField edgeLyr afvArea [areaPI] VB # edgeLyr</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\SelectLayerByAttribute" Date="20121106" Time="093726">SelectLayerByAttribute edgeLyr CLEAR_SELECTION # edgeLyr</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20121106" Time="095616">AddField edgeLyr netID LONG # # # # NULLABLE NON_REQUIRED # edgeLyr</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\AddField" Date="20121106" Time="100358">AddField D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges Length FLOAT # # # # NULLABLE NON_REQUIRED # D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\CalculateField" Date="20121106" Time="100403">CalculateField D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges Length float(!SHAPE.LENGTH!) PYTHON # D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges</Process><Process ToolSource="C:\Program Files (x86)\ArcGIS\ArcToolbox\Toolboxes\Data Management Tools.tbx\CopyFeatures" Date="20121106" Time="100442">CopyFeatures D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.mdb\edges D:\Cutthroat_Climate_Project\GNLCC-temperature\Salmon\LSN\salmonlsn.ssn\edges.shp # 0 0 0</Process></lineage><itemProps><itemName Sync="TRUE">edges</itemName><imsContentType Sync="TRUE">002</imsContentType><itemSize Sync="TRUE">0.000</itemSize><itemLocation><linkage Sync="TRUE">file://\\AFSLTHPK92402H5\D$\HELPING\Erin\LSN\lsn.ssn\edges.shp</linkage><protocol Sync="TRUE">Local Area Network</protocol></itemLocation></itemProps><coordRef><type Sync="TRUE">Projected</type><geogcsn Sync="TRUE">GCS_North_American_1983</geogcsn><csUnits Sync="TRUE">Linear Unit: Meter (1.000000)</csUnits><projcsn Sync="TRUE">GNLCC</projcsn><peXml Sync="TRUE">&lt;ProjectedCoordinateSystem xsi:type='typens:ProjectedCoordinateSystem' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance' xmlns:xs='http://www.w3.org/2001/XMLSchema' xmlns:typens='http://www.esri.com/schemas/ArcGIS/10.5'&gt;&lt;WKT&gt;PROJCS[&amp;quot;GNLCC&amp;quot;,GEOGCS[&amp;quot;GCS_North_American_1983&amp;quot;,DATUM[&amp;quot;D_North_American_1983&amp;quot;,SPHEROID[&amp;quot;GRS_1980&amp;quot;,6378137.0,298.257222101]],PRIMEM[&amp;quot;Greenwich&amp;quot;,0.0],UNIT[&amp;quot;Degree&amp;quot;,0.0174532925199433]],PROJECTION[&amp;quot;Albers&amp;quot;],PARAMETER[&amp;quot;False_Easting&amp;quot;,1500000.0],PARAMETER[&amp;quot;False_Northing&amp;quot;,0.0],PARAMETER[&amp;quot;Central_Meridian&amp;quot;,-114.0],PARAMETER[&amp;quot;Standard_Parallel_1&amp;quot;,43.0],PARAMETER[&amp;quot;Standard_Parallel_2&amp;quot;,47.0],PARAMETER[&amp;quot;Latitude_Of_Origin&amp;quot;,30.0],UNIT[&amp;quot;Meter&amp;quot;,1.0]]&lt;/WKT&gt;&lt;XOrigin&gt;-13886400&lt;/XOrigin&gt;&lt;YOrigin&gt;-7347800&lt;/YOrigin&gt;&lt;XYScale&gt;292700022.57646328&lt;/XYScale&gt;&lt;ZOrigin&gt;-100000&lt;/ZOrigin&gt;&lt;ZScale&gt;10000&lt;/ZScale&gt;&lt;MOrigin&gt;-100000&lt;/MOrigin&gt;&lt;MScale&gt;10000&lt;/MScale&gt;&lt;XYTolerance&gt;0.001&lt;/XYTolerance&gt;&lt;ZTolerance&gt;0.001&lt;/ZTolerance&gt;&lt;MTolerance&gt;0.001&lt;/MTolerance&gt;&lt;HighPrecision&gt;true&lt;/HighPrecision&gt;&lt;/ProjectedCoordinateSystem&gt;</peXml></coordRef></DataProperties><CreaDate>20200808</CreaDate><CreaTime>14525100</CreaTime><SyncOnce>FALSE</SyncOnce><ArcGISFormat>1.0</ArcGISFormat><ArcGISstyle>FGDC CSDGM Metadata</ArcGISstyle></Esri><mdDateSt Sync="TRUE">20200808</mdDateSt></metadata>
